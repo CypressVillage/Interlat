@@ -210,3 +210,6 @@ submit.sh.bak
 # Backup files
 *.bak
 *.backup
+
+# Vendored third-party source（体积大且含构建产物，不入 git；重建步骤见 ENVIRONMENT.md）
+vendor/
