@@ -91,14 +91,15 @@ def build_receiver_messages(
     observations: List[str],
 ) -> List[Dict[str, str]]:
     """messages for a full trajectory:
-    user1 = task + initial obs; then [assistant action_k, user obs_k] pairs."""
+    system + user1 = instruction + task + initial obs; then
+    [assistant action_k, user obs_k] pairs."""
     from step1.serialization import (
         receiver_assistant_content,
-        receiver_first_user_content,
+        receiver_initial_messages,
         receiver_step_user_content,
     )
 
-    messages = [{"role": "user", "content": receiver_first_user_content(task_description, initial_observation)}]
+    messages = receiver_initial_messages(task_description, initial_observation)
     for k, action in enumerate(actions):
         messages.append({
             "role": "assistant",

@@ -7,7 +7,8 @@ is injected once after the first user turn, before the first assistant header
 (at embedding level, by the model wrapper).
 
 Receiver message structure (fixed for all groups):
-  user turn 1: "The task is: {task_description}\nInitial observation: {initial_observation}"
+  system: "You are a helpful assistant."
+  user turn 1: upstream ALFWorld instruction + task + initial observation
   assistant turn k: "Thought: {thought}\nAction: {action}"
   user turn k>=2: "Observation: {obs}"
 
@@ -29,6 +30,27 @@ from transformers import AutoTokenizer
 from step1.common import MODEL_ID, MODEL_REVISION
 
 BOP, EOP = "<bop>", "<eop>"
+RECEIVER_SYSTEM_CONTENT = "You are a helpful assistant."
+ALFWORLD_RECEIVER_INSTRUCTION = """Interact with a household to solve a task. Imagine you are an intelligent agent in a household environment and your target is to perform actions to complete the task goal. At the beginning of your interactions, you will be given the detailed description of the current environment and your goal to accomplish.
+For each of your turn, you will be given the observation of the last turn. You should first think about the current condition and plan for your future actions, and then output your action in this turn. Your output must strictly follow this format:"Thought: your thoughts.\\nAction: your next action".
+
+The available actions are:
+1. go to {recep}
+2. take {obj} from {recep}
+3. put {obj} in/on {recep}
+4. open {recep}
+5. close {recep}
+6. toggle {obj} {recep}
+7. clean {obj} with {recep}
+8. heat {obj} with {recep}
+9. cool {obj} with {recep}
+where {obj} and {recep} correspond to objects and receptacles.
+After your each turn, the environment will give you immediate feedback based on which you plan your next few steps. if the envrionment output "Nothing happened", that means the previous action is invalid and you should try more options.
+
+Your response should use the following format:
+
+Thought: <your thoughts>
+Action: <your next action>"""
 
 
 def load_locked_tokenizer():
@@ -69,9 +91,22 @@ def sender_messages(task_description: str, initial_observation: str) -> List[Dic
 
 def receiver_first_user_content(task_description: str, initial_observation: str) -> str:
     return (
+        f"{ALFWORLD_RECEIVER_INSTRUCTION}\n"
+        "---\n"
+        "Here is an example.\n\n\n"
+        "---\n\n"
+        "Now, it's your turn and here is the task.\n"
         f"The task is: {task_description}\n"
-        f"Initial observation: {initial_observation}"
+        f"Initial observation: {initial_observation}\n"
+        "Now, you are given a step-by-step plan to complete this task as follow:"
     )
+
+
+def receiver_initial_messages(task_description: str, initial_observation: str) -> List[Dict[str, str]]:
+    return [
+        {"role": "system", "content": RECEIVER_SYSTEM_CONTENT},
+        {"role": "user", "content": receiver_first_user_content(task_description, initial_observation)},
+    ]
 
 
 def receiver_step_user_content(observation: str) -> str:
@@ -101,11 +136,10 @@ def render_with_labels(tok, messages: List[Dict[str, str]], supervision: bool = 
     append-only; verified here, not assumed).
 
     injection_index = token length after the first user turn (start of the
-    next segment). With messages[0] = user, the latent is spliced at that
-    embedding index once.
+    next segment). The latent is spliced at that embedding index once.
     """
-    if not messages or messages[0]["role"] != "user":
-        raise ValueError("messages must start with a user turn")
+    if not messages or not any(msg["role"] == "user" for msg in messages):
+        raise ValueError("messages must contain a user turn")
 
     prefix_ids: List[int] = []
     spans: List[Tuple[int, int, str]] = []
@@ -139,7 +173,8 @@ def render_with_labels(tok, messages: List[Dict[str, str]], supervision: bool = 
         labels.extend(seg_labels)
         prefix_ids = ids
 
-    injection_index = spans[0][1]
+    first_user_index = next(i for i, msg in enumerate(messages) if msg["role"] == "user")
+    injection_index = spans[first_user_index][1]
 
     return RenderedInput(
         input_ids=prefix_ids,

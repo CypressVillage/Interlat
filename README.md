@@ -1,5 +1,26 @@
 <a name="readme-top"></a>
 
+## Collaboration snapshot
+
+This directory is the reproducible code snapshot for the
+`latent-communication` project. It was exported from the A10 working copy at
+`~/Interlat`, branch `step1`, commit
+`12835e3073cd8dd05be3887fcf39eddc2b428d19` (2026-09-09T15:47:20+08:00).
+
+- Canonical GPU working copy: `zhaobc@a10:~/Interlat`
+- Step 1A entry point and smoke commands: [`step1/README.md`](step1/README.md)
+- Locked environment and rebuild instructions: [`ENVIRONMENT.md`](ENVIRONMENT.md)
+- External ALFWorld data: `~/.cache/alfworld/json_2.1.1` on A10
+- Existing exploratory smoke artifacts: `~/step1_smoke` on A10
+
+Model weights, virtual environments, datasets, checkpoints, logs, and generated
+results remain on A10 and are intentionally excluded from this repository. When
+the A10 implementation changes, export the new tracked snapshot here and record
+the exact source commit before using its results in a draft. The current protocol
+permits implementation and smoke testing only; after restoring the upstream
+Receiver prompt, do not start the formal three-seed run until the revised
+protocol is reconfirmed.
+
 <p align="center">
     <a href="README.md">English</a> | <a href="README_zh.md">中文</a>
 </p>

@@ -30,6 +30,7 @@ from step1.common import EXPECTED_PARAM_COUNT, write_json
 from step1.env_utils import parse_action
 from step1.serialization import (
     load_locked_tokenizer,
+    receiver_initial_messages,
     render_with_labels,
     verify_terminator,
 )
@@ -239,7 +240,7 @@ def cmd_earlystop(args):
 
 def cmd_prefix(args):
     tok = load_locked_tokenizer()
-    m1 = [{"role": "user", "content": "The task is: T\nInitial observation: O"}]
+    m1 = receiver_initial_messages("T", "O")
     m2 = m1 + [{"role": "assistant", "content": "Thought: x\nAction: look"},
                {"role": "user", "content": "Observation: Nothing happens."}]
     r1 = render_with_labels(tok, m1)

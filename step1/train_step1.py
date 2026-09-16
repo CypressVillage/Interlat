@@ -34,7 +34,7 @@ from step1.common import (
 from step1.serialization import (
     load_locked_tokenizer,
     receiver_assistant_content,
-    receiver_first_user_content,
+    receiver_initial_messages,
     receiver_step_user_content,
     render_with_labels,
 )
@@ -43,7 +43,7 @@ from step1.serialization import (
 def build_receiver_messages(info: Dict, traj: Dict) -> list:
     """Full multi-turn receiver conversation for one expert trajectory.
 
-    user1 (task + initial observation) -> assistant (Thought+Action) ->
+    system + user1 (instruction + task + initial observation) -> assistant (Thought+Action) ->
     user (Observation) -> assistant -> ... No trailing observation after the
     final action. This is the training sample; CE covers all assistant turns.
     """
@@ -57,8 +57,7 @@ def build_receiver_messages(info: Dict, traj: Dict) -> list:
             f"{traj.get('episode_id')}: trajectory length mismatch "
             f"a={len(actions)} t={len(thoughts)} o={len(observations)}"
         )
-    msgs = [{"role": "user", "content": receiver_first_user_content(
-        info["task_description"], info["initial_observation"])}]
+    msgs = receiver_initial_messages(info["task_description"], info["initial_observation"])
     n = len(actions)
     for i in range(n):
         msgs.append({"role": "assistant",

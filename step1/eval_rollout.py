@@ -49,7 +49,12 @@ from step1.controls import (
     matched_norm_target,
 )
 from step1.env_utils import make_plain_tw_env, parse_action, process_ob, split_task_and_initial_observation, strip_intro_text
-from step1.serialization import bop_eop_ids, load_locked_tokenizer, render_with_labels
+from step1.serialization import (
+    bop_eop_ids,
+    load_locked_tokenizer,
+    receiver_initial_messages,
+    render_with_labels,
+)
 
 UPSTREAM_ACTION_RE = re.compile(r"Action:\s?(.*)", re.DOTALL)
 
@@ -76,6 +81,7 @@ def greedy_generate(receiver, cache_state, max_new_tokens: int, im_end_id: int, 
         past = out.past_key_values
         logits = out.logits[:, -1, :]
     cache_state["past"] = past
+    cache_state["logits"] = logits
     return ids, hit
 
 
@@ -94,6 +100,7 @@ def append_tokens(receiver, cache_state, token_ids, device: str):
     out = receiver.base_model(inputs_embeds=emb, past_key_values=cache_state["past"],
                               use_cache=True)
     cache_state["past"] = out.past_key_values
+    cache_state["logits"] = out.logits[:, -1, :]
 
 
 def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch.Tensor | None,
@@ -110,8 +117,7 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
         rec["task_description"] = task_description
         rec["initial_observation"] = initial_observation
 
-        user1 = [{"role": "user", "content":
-                  f"The task is: {task_description}\nInitial observation: {initial_observation}"}]
+        user1 = receiver_initial_messages(task_description, initial_observation)
         ids1 = tok.apply_chat_template(user1, tokenize=True, add_generation_prompt=True)
         r = render_with_labels(tok, user1)
         if ids1[:r.injection_index] != r.input_ids[:r.injection_index]:
@@ -156,7 +162,7 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
             obs = process_ob(state["feedback"])
             won = bool(state["won"])
             rec["n_steps"] += 1
-            if won:
+            if won or done:
                 break
             messages.append({"role": "user", "content": f"Observation: {obs}"})
 
@@ -168,7 +174,7 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
             if prev_len != len(expected) or ids_k[:prev_len] != expected:
                 raise AssertionError("chat template prefix drifted during rollout")
             append_tokens(receiver, cache, ids_k[prev_len:], device)
-            prev_len = len(ids_k)
+            ids1 = ids_k
         else:
             rec["reason"] = "max_steps"
         if won:
