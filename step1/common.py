@@ -43,12 +43,41 @@ N_CHECKPOINT_SELECTION = 332
 EVAL_MAX_STEPS = 20
 SENDER_MAX_NEW_TOKENS = 256
 RECEIVER_MAX_NEW_TOKENS = 100
-LATENT_EXPECTED_DIM = 896
 
-MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-MODEL_REVISION = "7ae557604adf67be50417f59c2c2f167def9a775"
+DEFAULT_MODEL_PROFILE = "qwen2.5-0.5b"
+MODEL_PROFILES = {
+    "qwen2.5-0.5b": {
+        "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+        "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "hidden_size": 896,
+        "adapter_num_heads": 8,
+        "expected_param_count": 4_827_650,
+    },
+    "qwen2.5-7b": {
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "hidden_size": 3584,
+        "adapter_num_heads": 8,
+        "expected_param_count": 77_113_346,
+    },
+}
 
-EXPECTED_PARAM_COUNT = 4_827_650
+
+def get_model_profile(name: str = DEFAULT_MODEL_PROFILE) -> Dict:
+    try:
+        return {"name": name, **MODEL_PROFILES[name]}
+    except KeyError as exc:
+        raise ValueError(
+            f"unknown model profile {name!r}; choose from {sorted(MODEL_PROFILES)}"
+        ) from exc
+
+
+# Legacy aliases keep existing 0.5B commands and imports unchanged.
+_DEFAULT_PROFILE = get_model_profile()
+LATENT_EXPECTED_DIM = _DEFAULT_PROFILE["hidden_size"]
+MODEL_ID = _DEFAULT_PROFILE["model_id"]
+MODEL_REVISION = _DEFAULT_PROFILE["model_revision"]
+EXPECTED_PARAM_COUNT = _DEFAULT_PROFILE["expected_param_count"]
 
 # ---------------------------------------------------------------- roles
 ROLES = {

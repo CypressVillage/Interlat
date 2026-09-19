@@ -12,10 +12,13 @@ class Tokenizer:
         return 255
 
     def apply_chat_template(self, messages, tokenize=True, add_generation_prompt=False):
-        text = ''.join(m['role'] + ':' + m['content'] + '|' for m in messages)
+        ids = []
+        for message in messages:
+            ids.extend((message['role'] + ':' + message['content'] + '|').encode())
+            ids.append(255)
         if add_generation_prompt:
-            text += 'assistant:'
-        return list(text.encode())
+            ids.extend(b'assistant:')
+        return ids
 
     def decode(self, ids):
         return bytes(ids).decode()
@@ -30,6 +33,12 @@ class Model:
 
 
 class CacheTests(unittest.TestCase):
+    def test_next_turn_suffix_starts_at_assistant_terminator(self):
+        tok = Tokenizer()
+        suffix = ev.next_turn_suffix(tok, "next", 255)
+        expected = [255, *b"user:Observation: next|", 255, *b"assistant:"]
+        self.assertEqual(suffix, expected)
+
     def test_append_refreshes_logits(self):
         cache = {'past': None, 'logits': torch.zeros(1, 3)}
         ev.append_tokens(SimpleNamespace(base_model=Model()), cache, [1], 'cpu')

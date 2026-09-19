@@ -1,6 +1,6 @@
 """Sender latent extraction for Step 1A (protocol §5).
 
-For every episode, the frozen Sender (Qwen2.5-0.5B-Instruct @ locked revision)
+For every episode, the frozen Sender selected by --model-profile
 greedily decodes the plan (do_sample=false, num_beams=1, max_new_tokens=256,
 stop at EOS). For each generated token t we save the last-layer hidden state
 that was used to predict t (one-to-one alignment: h_{i,t} <-> token y_t,
@@ -12,7 +12,7 @@ y_t. So (hidden_t, y_t) are aligned by construction. Smoke artifacts store
 per-position token ids, decoded text, argmax agreement and EOS flags.
 
 Artifacts (under --out-dir):
-  latents/{role}/{episode_id}.pt          float32 [L_i, 896] tensor
+  latents/{role}/{episode_id}.pt          float32 [L_i, hidden_size] tensor
   latents/{role}/{episode_id}.debug.json  per-position alignment record
   latents_manifest.jsonl                  L_i, shape, SHA-256 per episode
   plan_texts/{role}/{episode_id}.txt      plan text from the same decoding run
@@ -28,10 +28,10 @@ import sys
 import torch
 
 from step1.common import (
-    LATENT_EXPECTED_DIM,
-    MODEL_ID,
-    MODEL_REVISION,
+    DEFAULT_MODEL_PROFILE,
+    MODEL_PROFILES,
     SENDER_MAX_NEW_TOKENS,
+    get_model_profile,
     read_jsonl,
     sha256_file,
     sha256_text,
@@ -40,13 +40,18 @@ from step1.common import (
 from step1.serialization import load_locked_tokenizer, sender_messages
 
 
-def load_locked_sender(device: str = "cuda"):
+def load_locked_sender(model_profile: str = DEFAULT_MODEL_PROFILE, device: str = "cuda"):
     from transformers import AutoModelForCausalLM
 
+    profile = get_model_profile(model_profile)
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, revision=MODEL_REVISION, torch_dtype=torch.bfloat16,
+        profile["model_id"], revision=profile["model_revision"], torch_dtype=torch.bfloat16,
         attn_implementation="eager",
     ).to(device)
+    if model.config.hidden_size != profile["hidden_size"]:
+        raise AssertionError(
+            f"sender hidden size {model.config.hidden_size} != profile {profile['hidden_size']}"
+        )
     model.eval()
     return model
 
@@ -56,7 +61,7 @@ def extract_latent(model, tok, messages, device: str = "cuda", max_new_tokens: i
                    eos_token_id: int | None = None):
     """Greedy decode with per-token hidden-state extraction.
 
-    Returns dict with tokens (incl. EOS if produced), hidden float32 [L,896],
+    Returns dict with tokens (incl. EOS if produced), hidden float32 [L,hidden_size],
     per-position debug rows, plan text.
     """
     if eos_token_id is None:
@@ -94,7 +99,7 @@ def extract_latent(model, tok, messages, device: str = "cuda", max_new_tokens: i
         logits = out.logits[:, -1, :]
         hidden = out.hidden_states[-1][:, -1, :]
 
-    H = torch.stack(hidden_rows, dim=0)  # [L, 896] float32
+    H = torch.stack(hidden_rows, dim=0)  # [L, hidden_size] float32
     plan_ids = [t for t in tokens if t != eos_token_id]
     plan_text = tok.decode(plan_ids)
     return {
@@ -112,7 +117,10 @@ def main() -> int:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--model-profile", choices=sorted(MODEL_PROFILES),
+                        default=DEFAULT_MODEL_PROFILE)
     args = parser.parse_args()
+    profile = get_model_profile(args.model_profile)
 
     with open(args.episode_inputs, "r", encoding="utf-8") as f:
         episode_inputs = json.load(f)
@@ -122,8 +130,8 @@ def main() -> int:
         rows = rows[: args.limit]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    tok = load_locked_tokenizer()
-    model = load_locked_sender(device=device)
+    tok = load_locked_tokenizer(args.model_profile)
+    model = load_locked_sender(args.model_profile, device=device)
 
     lat_root = os.path.join(args.out_dir, "latents")
     plan_root = os.path.join(args.out_dir, "plan_texts")
@@ -131,6 +139,12 @@ def main() -> int:
     done_ids = set()
     if os.path.exists(manifest_path):
         for row in read_jsonl(manifest_path):
+            existing_profile = row.get("model_profile", DEFAULT_MODEL_PROFILE)
+            if existing_profile != args.model_profile:
+                raise ValueError(
+                    f"existing latent manifest contains profile {existing_profile!r}, "
+                    f"requested {args.model_profile!r}; use a separate --out-dir"
+                )
             done_ids.add(row["episode_id"])
 
     manifest_rows = []
@@ -176,14 +190,17 @@ def main() -> int:
             "dim": int(H.shape[1]),
             "shape": list(H.shape),
             "dtype": "float32",
+            "model_profile": args.model_profile,
+            "model_id": profile["model_id"],
+            "model_revision": profile["model_revision"],
             "tensor_sha256": sha256_file(pt_path),
             "plan_text_sha256": sha256_text(result["plan_text"]),
             "plan_chars": len(result["plan_text"]),
             "hidden_min": float(H.min()), "hidden_max": float(H.max()),
             "hidden_mean": float(H.mean()), "hidden_std": float(H.std()),
         })
-        if H.shape[1] != LATENT_EXPECTED_DIM:
-            print(f"[ERROR] {eid}: dim {H.shape[1]} != {LATENT_EXPECTED_DIM}", file=sys.stderr)
+        if H.shape[1] != profile["hidden_size"]:
+            print(f"[ERROR] {eid}: dim {H.shape[1]} != {profile['hidden_size']}", file=sys.stderr)
             return 2
         with open(manifest_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(manifest_rows[-1], ensure_ascii=False, sort_keys=True) + "\n")

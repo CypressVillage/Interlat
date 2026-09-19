@@ -8,11 +8,13 @@ is injected once after the first user turn, before the first assistant header
 
 Receiver message structure (fixed for all groups):
   system: "You are a helpful assistant."
-  user turn 1: upstream ALFWorld instruction + task + initial observation
+  user turn 1: upstream ALFWorld instruction + fixed 1-shot format demo
+               + task + initial observation
   assistant turn k: "Thought: {thought}\nAction: {action}"
   user turn k>=2: "Observation: {obs}"
 
 Sender message (single user turn, fixed):
+  upstream ALFWorld instruction +
   "Please provide a general plan to solve this task.
 
    The task is: {task_description}
@@ -25,9 +27,8 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from step1.common import DEFAULT_MODEL_PROFILE, get_model_profile
 from transformers import AutoTokenizer
-
-from step1.common import MODEL_ID, MODEL_REVISION
 
 BOP, EOP = "<bop>", "<eop>"
 RECEIVER_SYSTEM_CONTENT = "You are a helpful assistant."
@@ -52,9 +53,20 @@ Your response should use the following format:
 Thought: <your thoughts>
 Action: <your next action>"""
 
+ALFWORLD_ONE_SHOT_DEMO = """Observation: You are in the middle of a room. Looking quickly around you, you see a countertop 1 and a cabinet 1.
+Thought: I should inspect a visible receptacle to find the target object.
+Action: go to countertop 1"""
+ALFWORLD_SINGLE_ACTION_RULE = (
+    "For each turn, output exactly one Thought line followed by exactly one Action line. "
+    "Do not propose or output a second action in the same response."
+)
 
-def load_locked_tokenizer():
-    tok = AutoTokenizer.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
+
+def load_locked_tokenizer(model_profile: str = DEFAULT_MODEL_PROFILE):
+    profile = get_model_profile(model_profile)
+    tok = AutoTokenizer.from_pretrained(
+        profile["model_id"], revision=profile["model_revision"]
+    )
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     tok.padding_side = "right"
@@ -79,6 +91,8 @@ def bop_eop_ids(tok) -> Tuple[int, int]:
 # ------------------------------------------------------------------ messages
 def sender_user_content(task_description: str, initial_observation: str) -> str:
     return (
+        f"{ALFWORLD_RECEIVER_INSTRUCTION}\n"
+        "---\n\n"
         "Please provide a general plan to solve this task.\n\n"
         f"The task is: {task_description}\n"
         f"Initial observation: {initial_observation}"
@@ -93,7 +107,9 @@ def receiver_first_user_content(task_description: str, initial_observation: str)
     return (
         f"{ALFWORLD_RECEIVER_INSTRUCTION}\n"
         "---\n"
-        "Here is an example.\n\n\n"
+        "Here is a one-step format example.\n\n"
+        f"{ALFWORLD_ONE_SHOT_DEMO}\n"
+        f"\n{ALFWORLD_SINGLE_ACTION_RULE}\n"
         "---\n\n"
         "Now, it's your turn and here is the task.\n"
         f"The task is: {task_description}\n"

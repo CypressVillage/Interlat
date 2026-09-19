@@ -25,9 +25,6 @@ from typing import Dict, List, Tuple
 import torch
 import torch.nn.functional as F
 
-from step1.common import LATENT_EXPECTED_DIM
-
-
 def _sha256_int(text: str) -> int:
     return int.from_bytes(hashlib.sha256(text.encode("utf-8")).digest()[:8], "big")
 
@@ -110,18 +107,16 @@ def make_mismatched_message(adapter, H_donor: torch.Tensor, L_i: int,
     return Z, info
 
 
-def make_zero_message(L_i: int, emb_dtype: torch.dtype, device: torch.device) -> torch.Tensor:
-    return torch.zeros(L_i, LATENT_EXPECTED_DIM, dtype=emb_dtype, device=device)
+def make_zero_message(L_i: int, hidden_size: int, emb_dtype: torch.dtype,
+                      device: torch.device) -> torch.Tensor:
+    return torch.zeros(L_i, hidden_size, dtype=emb_dtype, device=device)
 
 
-LATENT_EXPECTED_DIM = 896
-
-
-def make_random_message(L_i: int, draw: int, episode_id: str, norm_target: float,
+def make_random_message(L_i: int, hidden_size: int, draw: int, episode_id: str, norm_target: float,
                         emb_dtype: torch.dtype, device: torch.device) -> Tuple[torch.Tensor, Dict]:
     g = torch.Generator()
     g.manual_seed(_sha256_int(f"{draw}\0{episode_id}") % (2 ** 63))
-    noise = torch.randn(L_i, LATENT_EXPECTED_DIM, generator=g, dtype=torch.float32)
+    noise = torch.randn(L_i, hidden_size, generator=g, dtype=torch.float32)
     noise_norm = float(noise.norm())
     scale = norm_target / noise_norm if noise_norm > 0 else 0.0
     Z = (noise * scale).to(device=device, dtype=emb_dtype)
@@ -144,5 +139,4 @@ def make_matched_message(adapter, H_i: torch.Tensor, emb_dtype: torch.dtype,
                          device: torch.device) -> Tuple[torch.Tensor, Dict]:
     Zi = adapter.process_hidden_states(H_i.to(device, dtype=torch.float32))
     return Zi.to(emb_dtype), {"L_target": int(H_i.shape[0])}
-
 

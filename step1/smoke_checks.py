@@ -26,12 +26,13 @@ import sys
 import torch
 
 from step1.adapter import load_frozen_receiver
-from step1.common import EXPECTED_PARAM_COUNT, write_json
+from step1.common import EXPECTED_PARAM_COUNT, MODEL_ID, MODEL_REVISION, write_json
 from step1.env_utils import parse_action
 from step1.serialization import (
     load_locked_tokenizer,
     receiver_initial_messages,
     render_with_labels,
+    sender_messages,
     verify_terminator,
 )
 
@@ -50,14 +51,42 @@ def cmd_serialization(args):
     messages = build_receiver_messages(info, traj)
     r = render_with_labels(tok, messages)
     sup = [i for i, l in enumerate(r.labels) if l != -100]
+    sender = sender_messages(info["task_description"], info["initial_observation"])
+    receiver_first = receiver_initial_messages(
+        info["task_description"], info["initial_observation"])
+    receiver_later = messages[:4] if len(messages) >= 4 else messages
+
+    def generation_snapshot(snapshot_messages):
+        ids = tok.apply_chat_template(
+            snapshot_messages, tokenize=True, add_generation_prompt=True)
+        return {
+            "messages": snapshot_messages,
+            "rendered_text": tok.apply_chat_template(
+                snapshot_messages, tokenize=False, add_generation_prompt=True),
+            "input_ids": ids,
+            "tokens": tok.convert_ids_to_tokens(ids),
+            "attention_mask": [1] * len(ids),
+        }
+
     artifact = {
         "episode_id": args.episode_id,
+        "model_id": MODEL_ID,
+        "model_revision": MODEL_REVISION,
+        "tokenizer_class": type(tok).__name__,
+        "chat_template": tok.chat_template,
+        "special_tokens_map": {k: str(v) for k, v in tok.special_tokens_map.items()},
+        "sender_generation_input": generation_snapshot(sender),
+        "receiver_first_generation_input": generation_snapshot(receiver_first),
+        "receiver_later_generation_input": generation_snapshot(receiver_later),
         "messages": messages,
         "rendered_text": tok.decode(r.input_ids),
         "input_ids": r.input_ids,
+        "tokens": tok.convert_ids_to_tokens(r.input_ids),
+        "attention_mask": [1] * len(r.input_ids),
         "labels": r.labels,
         "injection_index": r.injection_index,
         "injection_context": tok.decode(r.input_ids[max(0, r.injection_index - 8):r.injection_index + 8]),
+        "turn_spans": r.turn_spans,
         "supervised_token_count": len(sup),
         "supervised_span_text": tok.decode([r.input_ids[i] for i in sup]),
         "supervised_span_text_sha256": __import__("hashlib").sha256(
@@ -92,31 +121,33 @@ def cmd_loss(args):
                        args.trajectories_dir)[:2]
 
     calls = {"n": 0}
-    base_forward = receiver.base_model.forward
+    base_forward = receiver.base_model.model.forward
 
     def counting_forward(*a, **kw):
         calls["n"] += 1
         return base_forward(*a, **kw)
 
-    receiver.base_model.forward = counting_forward
+    receiver.base_model.model.forward = counting_forward
     receiver.train()
     b = receiver.build_training_batch(items)
-    loss, logits = receiver.forward(b["input_embeds"], b["attention_mask"], b["labels"])
-    receiver.base_model.forward = base_forward
+    try:
+        loss, logits = receiver.forward(b["input_embeds"], b["attention_mask"], b["labels"])
+    finally:
+        receiver.base_model.model.forward = base_forward
 
-    shift_logits = logits[:, :-1, :].float()
     shift_labels = b["labels"][:, 1:]
     mask = shift_labels != -100
-    logp = torch.log_softmax(shift_logits, dim=-1)
-    tok_nll = -logp.gather(-1, shift_labels.clamp_min(0).unsqueeze(-1)).squeeze(-1)
-    manual = float((tok_nll * mask).sum() / mask.sum())
+    targets = shift_labels[mask]
+    logp = torch.log_softmax(logits.float(), dim=-1)
+    tok_nll = -logp.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
+    manual = float(tok_nll.mean())
 
     artifact = {
         "forward_calls": calls["n"],
         "hf_loss": float(loss.detach()),
         "manual_ce": manual,
         "abs_diff": abs(float(loss.detach()) - manual),
-        "supervised_tokens": int(mask.sum()),
+        "supervised_tokens": int(targets.numel()),
         "aux_losses_present": False,
         "ok": calls["n"] == 1 and abs(float(loss.detach()) - manual) < 1e-5,
     }

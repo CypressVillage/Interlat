@@ -27,7 +27,10 @@ import torch
 
 from step1.adapter import ReceiverWithLatent, Step1Adapter, load_frozen_receiver
 from step1.common import (
+    DEFAULT_MODEL_PROFILE,
+    MODEL_PROFILES,
     TRAINING_SEEDS,
+    get_model_profile,
     read_jsonl,
     write_json,
 )
@@ -69,10 +72,11 @@ def build_receiver_messages(info: Dict, traj: Dict) -> list:
 
 
 def load_items(episode_inputs_path: str, manifest_path: str, latents_dir: str,
-               trajectories_dir: str) -> list:
+               trajectories_dir: str, model_profile: str = DEFAULT_MODEL_PROFILE) -> list:
     with open(episode_inputs_path, "r", encoding="utf-8") as f:
         episode_inputs = json.load(f)
-    tok = load_locked_tokenizer()
+    profile = get_model_profile(model_profile)
+    tok = load_locked_tokenizer(model_profile)
     items = []
     for row in read_jsonl(manifest_path):
         eid = row["episode_id"]
@@ -85,7 +89,7 @@ def load_items(episode_inputs_path: str, manifest_path: str, latents_dir: str,
         if not any(l != -100 for l in rendered.labels):
             raise ValueError(f"{eid}: no supervised tokens in rendered conversation")
         H = torch.load(os.path.join(latents_dir, row["role"], f"{eid}.pt"), map_location="cpu")
-        if H.dtype != torch.float32 or H.shape[1] != 896:
+        if H.dtype != torch.float32 or H.dim() != 2 or H.shape[1] != profile["hidden_size"]:
             raise ValueError(f"{eid}: latent dtype/shape invalid: {H.dtype} {tuple(H.shape)}")
         items.append({
             "episode_id": eid,
@@ -138,6 +142,11 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--wd", type=float, default=0.01)
     ap.add_argument("--patience", type=int, default=2)
+    ap.add_argument("--model-profile", choices=sorted(MODEL_PROFILES),
+                    default=DEFAULT_MODEL_PROFILE)
+    ap.add_argument("--gradient-checkpointing", action="store_true")
+    ap.add_argument("--attn-implementation", choices=("eager", "sdpa"), default="eager")
+    ap.add_argument("--offload-input-embeddings", action="store_true")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
@@ -150,14 +159,23 @@ def main() -> int:
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    tok = load_locked_tokenizer()
-    receiver, freeze_report = load_frozen_receiver(tok, device=args.device)
+    profile = get_model_profile(args.model_profile)
+    tok = load_locked_tokenizer(args.model_profile)
+    receiver, freeze_report = load_frozen_receiver(
+        tok, device=args.device, model_profile=args.model_profile,
+        attn_implementation=args.attn_implementation,
+        offload_input_embeddings=args.offload_input_embeddings,
+    )
     assert isinstance(receiver, ReceiverWithLatent)
+    if args.gradient_checkpointing:
+        receiver.base_model.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False}
+        )
 
     train_items = load_items(args.episode_inputs, args.train_manifest, args.latents_dir,
-                             args.trajectories_dir)
+                             args.trajectories_dir, args.model_profile)
     sel_items = load_items(args.episode_inputs, args.selection_manifest, args.latents_dir,
-                           args.trajectories_dir)
+                           args.trajectories_dir, args.model_profile)
     print(f"[DATA] train={len(train_items)} selection={len(sel_items)}")
 
     trainable = [p for p in receiver.parameters() if p.requires_grad]
@@ -175,6 +193,10 @@ def main() -> int:
     log({
         "event": "init", "seed": args.seed, "epochs": args.epochs, "bs": args.bs,
         "accum": args.accum, "lr": args.lr, "wd": args.wd, "patience": args.patience,
+        "model_profile": profile,
+        "gradient_checkpointing": args.gradient_checkpointing,
+        "attn_implementation": args.attn_implementation,
+        "offload_input_embeddings": args.offload_input_embeddings,
         "freeze_report": freeze_report,
         "adapter_init": {
             "scale": float(receiver.adapter.adaptive_proj.scale.detach()),
@@ -222,6 +244,7 @@ def main() -> int:
                 "adapter_state": receiver.adapter.state_dict(),
                 "eval_export": receiver.adapter.state_for_eval_export(),
                 "epoch": epoch, "sel_nll": sel_matched["nll"], "seed": args.seed,
+                "model_profile": profile,
             }, os.path.join(args.out_dir, "adapter_best.pt"))
         else:
             no_improve += 1

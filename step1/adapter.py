@@ -24,7 +24,7 @@ from typing import Dict, List, Optional
 import torch
 import torch.nn as nn
 
-from step1.common import EXPECTED_PARAM_COUNT, LATENT_EXPECTED_DIM
+from step1.common import DEFAULT_MODEL_PROFILE, LATENT_EXPECTED_DIM, get_model_profile
 from step1.serialization import RenderedInput, bop_eop_ids, render_with_labels
 
 _ADAPTER_MODULES = ("hidden_mha", "pre_ln", "post_ln", "adaptive_proj")
@@ -32,6 +32,20 @@ _ADAPTER_MODULES = ("hidden_mha", "pre_ln", "post_ln", "adaptive_proj")
 _ADAPTER_PARAM_PREFIXES = tuple(
     [f"adapter.{m}." for m in _ADAPTER_MODULES] + [f"{m}." for m in _ADAPTER_MODULES]
 )
+
+
+def _supervised_token_ce(lm_head, hidden_states: torch.Tensor,
+                         labels: torch.Tensor):
+    """Compute causal CE without materializing vocabulary logits for masked tokens."""
+    shift_hidden = hidden_states[:, :-1, :]
+    shift_labels = labels[:, 1:]
+    mask = shift_labels != -100
+    n_tokens = int(mask.sum())
+    if n_tokens == 0:
+        raise ValueError("no supervised tokens in batch")
+    logits = lm_head(shift_hidden[mask])
+    loss = torch.nn.functional.cross_entropy(logits.float(), shift_labels[mask])
+    return loss, logits, n_tokens
 
 
 class Step1Adapter(nn.Module):
@@ -112,7 +126,7 @@ class ReceiverWithLatent(nn.Module):
         self.base_model.config.use_cache = False
 
     # ------------------------------------------------------------- freezing
-    def freeze_base_and_assert(self) -> Dict:
+    def freeze_base_and_assert(self, expected_param_count: int | None = None) -> Dict:
         base = self.base_model
         for p in base.parameters():
             p.requires_grad_(False)
@@ -124,8 +138,10 @@ class ReceiverWithLatent(nn.Module):
             if not name.startswith(_ADAPTER_PARAM_PREFIXES):
                 raise AssertionError(f"trainable param outside adapter whitelist: {name}")
         total = sum(p.numel() for _n, p in trainable)
-        if total != EXPECTED_PARAM_COUNT:
-            raise AssertionError(f"trainable params {total} != {EXPECTED_PARAM_COUNT}")
+        if expected_param_count is None:
+            expected_param_count = 6 * self.adapter.hidden_size ** 2 + 12 * self.adapter.hidden_size + 2
+        if total != expected_param_count:
+            raise AssertionError(f"trainable params {total} != {expected_param_count}")
 
         emb_params = sum(p.numel() for n, p in base.named_parameters()
                          if "embed_tokens" in n and p.requires_grad)
@@ -154,16 +170,16 @@ class ReceiverWithLatent(nn.Module):
         Returns input_embeds [B,T,D], attention_mask, labels [B,T].
         """
         emb_layer = self.base_model.get_input_embeddings()
+        emb_device = emb_layer.weight.device
         emb_dtype = emb_layer.weight.dtype
-        bop_emb = emb_layer.weight[self.bop_emb_row]
-        eop_emb = emb_layer.weight[self.eop_emb_row]
-        pad_emb = emb_layer.weight[self.tok.pad_token_id]
+        bop_emb = emb_layer.weight[self.bop_emb_row].to(self.device)
+        eop_emb = emb_layer.weight[self.eop_emb_row].to(self.device)
 
         per_sample = []
         for item in batch:
             r: RenderedInput = item["rendered"]
             H = item[latent_key]
-            if H.dim() != 2 or H.shape[1] != LATENT_EXPECTED_DIM:
+            if H.dim() != 2 or H.shape[1] != self.adapter.hidden_size:
                 raise ValueError(f"latent shape {tuple(H.shape)} invalid")
             if latent_key == "Z":
                 with torch.no_grad() if not self.adapter.training else torch.enable_grad():
@@ -174,8 +190,8 @@ class ReceiverWithLatent(nn.Module):
                 stats = self._stats(H.to(self.device))
                 Z_emb = H.to(device=self.device, dtype=emb_dtype)
 
-            ids = torch.tensor(r.input_ids, device=self.device)
-            tok_embs = emb_layer(ids)  # [n, D]
+            ids = torch.tensor(r.input_ids, device=emb_device)
+            tok_embs = emb_layer(ids).to(self.device)  # [n, D]
             inj = r.injection_index
             full = torch.cat([
                 tok_embs[:inj],
@@ -214,11 +230,12 @@ class ReceiverWithLatent(nn.Module):
     def build_no_injection_batch(self, batch: List[Dict]) -> Dict:
         """Natural No-Comm forward inputs: same renders, no delimiters/latent."""
         emb_layer = self.base_model.get_input_embeddings()
+        emb_device = emb_layer.weight.device
         embed_list, label_list, mask_list = [], [], []
         for item in batch:
             r: RenderedInput = item["rendered"]
-            ids = torch.tensor(r.input_ids, device=self.device)
-            full = emb_layer(ids)
+            ids = torch.tensor(r.input_ids, device=emb_device)
+            full = emb_layer(ids).to(self.device)
             labels = torch.tensor(r.labels, device=self.device, dtype=torch.long)
             n = full.shape[0]
             embed_list.append(full)
@@ -236,32 +253,28 @@ class ReceiverWithLatent(nn.Module):
         }
 
     def forward(self, input_embeds, attention_mask, labels):
-        """THE single training forward. Returns (loss, logits)."""
-        out = self.base_model(
+        """THE single training forward. Returns loss and supervised-token logits."""
+        out = self.base_model.model(
             inputs_embeds=input_embeds,
             attention_mask=attention_mask,
-            labels=labels,
+            use_cache=False,
+            return_dict=True,
         )
-        return out.loss, out.logits
+        loss, logits, _n_tokens = _supervised_token_ce(
+            self.base_model.lm_head, out.last_hidden_state, labels
+        )
+        return loss, logits
 
     @torch.no_grad()
     def supervised_nll(self, batch_out: Dict) -> Dict:
         """Same-calibration response-token NLL + token count for a built batch."""
-        logits = batch_out.get("logits")
-        if logits is None:
-            loss, logits = self.forward(
-                batch_out["input_embeds"], batch_out["attention_mask"], batch_out["labels"]
-            )
-        shift_logits = logits[:, :-1, :].float()
-        shift_labels = batch_out["labels"][:, 1:]
-        mask = shift_labels != -100
-        logp = torch.log_softmax(shift_logits, dim=-1)
-        tok_nll = -logp.gather(-1, shift_labels.clamp_min(0).unsqueeze(-1)).squeeze(-1)
-        tok_nll = tok_nll * mask
-        denom = mask.sum()
+        loss, _logits = self.forward(
+            batch_out["input_embeds"], batch_out["attention_mask"], batch_out["labels"]
+        )
+        n_tokens = int((batch_out["labels"][:, 1:] != -100).sum())
         return {
-            "nll": float(tok_nll.sum() / denom.clamp_min(1)),
-            "n_tokens": int(denom),
+            "nll": float(loss),
+            "n_tokens": n_tokens,
         }
 
     @staticmethod
@@ -274,18 +287,35 @@ class ReceiverWithLatent(nn.Module):
         }
 
 
-def load_frozen_receiver(tok, adapter: Optional[Step1Adapter] = None, device: str = "cuda"):
+def load_frozen_receiver(tok, adapter: Optional[Step1Adapter] = None, device: str = "cuda",
+                         model_profile: str = DEFAULT_MODEL_PROFILE,
+                         attn_implementation: str = "eager",
+                         offload_input_embeddings: bool = False):
     """Load the locked base model, resize for <bop>/<eop>, wrap, freeze, assert."""
     from transformers import AutoModelForCausalLM
 
-    from step1.common import MODEL_ID, MODEL_REVISION
+    profile = get_model_profile(model_profile)
 
     base = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, revision=MODEL_REVISION, torch_dtype=torch.bfloat16,
-        attn_implementation="eager",
+        profile["model_id"], revision=profile["model_revision"], torch_dtype=torch.bfloat16,
+        attn_implementation=attn_implementation,
     ).to(device)
+    if base.config.hidden_size != profile["hidden_size"]:
+        raise AssertionError(
+            f"base hidden size {base.config.hidden_size} != profile {profile['hidden_size']}"
+        )
     if adapter is None:
-        adapter = Step1Adapter().to(device)
+        adapter = Step1Adapter(
+            hidden_size=profile["hidden_size"], num_heads=profile["adapter_num_heads"]
+        ).to(device)
+    if adapter.hidden_size != profile["hidden_size"]:
+        raise AssertionError(
+            f"adapter hidden size {adapter.hidden_size} != profile {profile['hidden_size']}"
+        )
     receiver = ReceiverWithLatent(base, tok, adapter, device=device)
-    freeze_report = receiver.freeze_base_and_assert()
+    if offload_input_embeddings:
+        if base.config.tie_word_embeddings:
+            raise ValueError("cannot offload tied input embeddings independently")
+        base.get_input_embeddings().to("cpu")
+    freeze_report = receiver.freeze_base_and_assert(profile["expected_param_count"])
     return receiver, freeze_report

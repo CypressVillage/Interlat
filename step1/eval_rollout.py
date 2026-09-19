@@ -32,10 +32,13 @@ import torch
 
 from step1.adapter import load_frozen_receiver
 from step1.common import (
+    DEFAULT_MODEL_PROFILE,
     EVAL_MAX_STEPS,
     MISMATCH_DRAWS,
+    MODEL_PROFILES,
     RANDOM_DRAWS,
     RECEIVER_MAX_NEW_TOKENS,
+    get_model_profile,
     load_manifest,
     read_jsonl,
     write_json,
@@ -59,6 +62,32 @@ from step1.serialization import (
 UPSTREAM_ACTION_RE = re.compile(r"Action:\s?(.*)", re.DOTALL)
 
 
+def token_embeddings(receiver, token_ids, device: str):
+    emb_layer = receiver.base_model.get_input_embeddings()
+    ids = torch.tensor(token_ids, device=emb_layer.weight.device)
+    return emb_layer(ids).to(device)
+
+
+def next_turn_suffix(tok, observation: str, im_end_id: int):
+    """Render only the template suffix after an already generated assistant turn."""
+    assistant_only = [{"role": "assistant", "content": ""}]
+    probe = [
+        *assistant_only,
+        {"role": "user", "content": f"Observation: {observation}"},
+    ]
+    assistant_ids = tok.apply_chat_template(
+        assistant_only, tokenize=True, add_generation_prompt=False
+    )
+    ids = tok.apply_chat_template(probe, tokenize=True, add_generation_prompt=True)
+    end_indices = [i for i, token_id in enumerate(assistant_ids) if token_id == im_end_id]
+    if not end_indices:
+        raise AssertionError("chat template omitted assistant terminator")
+    end_index = end_indices[-1]
+    if ids[:end_index] != assistant_ids[:end_index]:
+        raise AssertionError("chat template prefix changed before assistant terminator")
+    return ids[end_index:]
+
+
 @torch.no_grad()
 def greedy_generate(receiver, cache_state, max_new_tokens: int, im_end_id: int, device: str):
     """Manual greedy loop over the KV cache. Returns (token_ids, hit_terminator).
@@ -76,7 +105,7 @@ def greedy_generate(receiver, cache_state, max_new_tokens: int, im_end_id: int, 
             hit = True
             break
         ids.append(nxt)
-        emb = model.get_input_embeddings()(torch.tensor([[nxt]], device=device))
+        emb = token_embeddings(receiver, [[nxt]], device)
         out = model(inputs_embeds=emb, past_key_values=past, use_cache=True)
         past = out.past_key_values
         logits = out.logits[:, -1, :]
@@ -95,8 +124,7 @@ def prefill(receiver, prefix_embeds, device: str):
 def append_tokens(receiver, cache_state, token_ids, device: str):
     if not token_ids:
         return
-    emb = receiver.base_model.get_input_embeddings()(
-        torch.tensor([token_ids], device=device))
+    emb = token_embeddings(receiver, [token_ids], device)
     out = receiver.base_model(inputs_embeds=emb, past_key_values=cache_state["past"],
                               use_cache=True)
     cache_state["past"] = out.past_key_values
@@ -109,7 +137,7 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
     im_end_id = tok.convert_tokens_to_ids("<|im_end|>")
     env = make_plain_tw_env(game_file_abs)
     rec = {"group": group, "success": False, "n_steps": 0, "reason": None,
-           "actions": [], "hit_terminator": []}
+           "actions": [], "outputs": [], "hit_terminator": []}
     try:
         state = env.reset()
         obs = strip_intro_text(state["feedback"])
@@ -125,30 +153,29 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
 
         emb_layer = receiver.base_model.get_input_embeddings()
         emb_dtype = emb_layer.weight.dtype
-        ids_t = torch.tensor(ids1, device=device)
+        tok_embs = token_embeddings(receiver, ids1, device)
         if latent is None:
-            prefix = emb_layer(ids_t)
+            prefix = tok_embs
         else:
             inj = r.injection_index
-            bop_emb = emb_layer.weight[bop_id]
-            eop_emb = emb_layer.weight[eop_id]
+            bop_emb = emb_layer.weight[bop_id].to(device)
+            eop_emb = emb_layer.weight[eop_id].to(device)
             prefix = torch.cat([
-                emb_layer(ids_t[:inj]),
+                tok_embs[:inj],
                 bop_emb.unsqueeze(0),
                 latent.to(device=device, dtype=emb_dtype),
                 eop_emb.unsqueeze(0),
-                emb_layer(ids_t[inj:]),
+                tok_embs[inj:],
             ], dim=0)
         cache = prefill(receiver, prefix.unsqueeze(0), device)
 
-        messages = list(user1)
-        prev_len = len(ids1)
         won = False
         done = False
         for _ in range(max_steps):
             gen_ids, hit = greedy_generate(receiver, cache, RECEIVER_MAX_NEW_TOKENS, im_end_id, device)
             rec["hit_terminator"].append(hit)
             text = tok.decode(gen_ids)
+            rec["outputs"].append(text)
             m = UPSTREAM_ACTION_RE.findall(text)
             action = parse_action(text) if m else None
             if action is None or action.strip() == "":
@@ -156,25 +183,16 @@ def rollout_episode(receiver, tok, game_file_abs: str, group: str, latent: torch
                 rec["raw_output"] = text
                 break
             rec["actions"].append(action)
-            messages.append({"role": "assistant", "content": text})
-
             state, _reward, done = env.step(action)
             obs = process_ob(state["feedback"])
             won = bool(state["won"])
             rec["n_steps"] += 1
             if won or done:
                 break
-            messages.append({"role": "user", "content": f"Observation: {obs}"})
-
-            ids_k = tok.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)
-            # greedy loop already fed ids1 + gen_ids embeddings into the cache
-            # (the im_end terminator breaks before being fed), so continue from there
-            prev_len = len(ids1) + len(gen_ids)
-            expected = list(ids1) + list(gen_ids)
-            if prev_len != len(expected) or ids_k[:prev_len] != expected:
-                raise AssertionError("chat template prefix drifted during rollout")
-            append_tokens(receiver, cache, ids_k[prev_len:], device)
-            ids1 = ids_k
+            # Generated token IDs are already in the cache. Render only the
+            # template-owned terminator, user turn, and next assistant header;
+            # decoding and re-tokenizing generated content can change boundaries.
+            append_tokens(receiver, cache, next_turn_suffix(tok, obs, im_end_id), device)
         else:
             rec["reason"] = "max_steps"
         if won:
@@ -201,6 +219,10 @@ def main() -> int:
                     help="ALFWorld data root; game_file paths are joined against it")
     ap.add_argument("--mismatch-draws", default=",".join(map(str, MISMATCH_DRAWS)))
     ap.add_argument("--random-draws", default=",".join(map(str, RANDOM_DRAWS)))
+    ap.add_argument("--model-profile", choices=sorted(MODEL_PROFILES),
+                    default=DEFAULT_MODEL_PROFILE)
+    ap.add_argument("--attn-implementation", choices=("eager", "sdpa"), default="eager")
+    ap.add_argument("--offload-input-embeddings", action="store_true")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
@@ -214,9 +236,20 @@ def main() -> int:
     if args.limit:
         rows = rows[: args.limit]
 
-    tok = load_locked_tokenizer()
-    receiver, freeze_report = load_frozen_receiver(tok, device=args.device)
-    ckpt = torch.load(args.adapter_path, map_location=args.device)
+    profile = get_model_profile(args.model_profile)
+    tok = load_locked_tokenizer(args.model_profile)
+    receiver, freeze_report = load_frozen_receiver(
+        tok, device=args.device, model_profile=args.model_profile,
+        attn_implementation=args.attn_implementation,
+        offload_input_embeddings=args.offload_input_embeddings,
+    )
+    ckpt = torch.load(args.adapter_path, map_location="cpu")
+    ckpt_profile = ckpt.get("model_profile", {})
+    ckpt_profile_name = ckpt_profile.get("name", DEFAULT_MODEL_PROFILE)
+    if ckpt_profile_name != args.model_profile:
+        raise ValueError(
+            f"adapter profile {ckpt_profile_name!r} != requested {args.model_profile!r}"
+        )
     receiver.adapter.load_eval_export(ckpt["eval_export"])
     receiver.eval()
     print(f"[LOAD] adapter from {args.adapter_path} (epoch={ckpt.get('epoch')}, "
@@ -227,8 +260,11 @@ def main() -> int:
 
     def latent_for(eid: str) -> torch.Tensor:
         row = next(r for r in rows if r["episode_id"] == eid)
-        return torch.load(os.path.join(args.latents_dir, row["role"], f"{eid}.pt"),
-                          map_location="cpu")
+        H = torch.load(os.path.join(args.latents_dir, row["role"], f"{eid}.pt"),
+                       map_location="cpu")
+        if H.dtype != torch.float32 or H.dim() != 2 or H.shape[1] != profile["hidden_size"]:
+            raise ValueError(f"{eid}: latent dtype/shape invalid: {H.dtype} {tuple(H.shape)}")
+        return H
 
     for group in groups:
         out_path = os.path.join(args.out_dir, "results", f"{group}.jsonl")
@@ -263,7 +299,8 @@ def main() -> int:
                 elif group == "raw":
                     Z = H.to(torch.bfloat16)
                 elif group == "zero":
-                    Z = make_zero_message(int(H.shape[0]), torch.bfloat16, torch.device(device))
+                    Z = make_zero_message(int(H.shape[0]), profile["hidden_size"],
+                                          torch.bfloat16, torch.device(device))
                 elif group == "mismatched":
                     p = mapping["pairs"][eid]
                     donor_path = os.path.join(args.latents_dir, row["role"], f"{p['donor_episode_id']}.pt")
@@ -272,8 +309,8 @@ def main() -> int:
                         receiver.adapter, H_donor, int(H.shape[0]), norm_target,
                         torch.bfloat16, torch.device(device))
                 elif group == "random":
-                    Z, _rinfo = make_random_message(int(H.shape[0]), draw, eid,
-                                                    norm_target, torch.bfloat16, torch.device(device))
+                    Z, _rinfo = make_random_message(int(H.shape[0]), profile["hidden_size"], draw, eid,
+                                                     norm_target, torch.bfloat16, torch.device(device))
                 else:  # no_comm
                     Z = None
                 rec = rollout_episode(receiver, tok, game_abs, group, Z, device,
@@ -294,6 +331,9 @@ def main() -> int:
     write_json(os.path.join(args.out_dir, "eval_summary.json"), {
         "groups": groups, "adapter": args.adapter_path, "max_steps": args.max_steps,
         "n_episodes": len(rows),
+        "model_profile": profile,
+        "attn_implementation": args.attn_implementation,
+        "offload_input_embeddings": args.offload_input_embeddings,
         "freeze_report": freeze_report,
     })
     return 0
