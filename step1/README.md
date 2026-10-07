@@ -210,3 +210,45 @@ and multi-turn cache path execute end to end. It does not support a task-success
 or latent-benefit claim, and the full-width adapter does not fit a useful
 multi-step AdamW training run on the current single A10. Artifacts are under
 `data/step1_path_a_7b/` and are ignored by git.
+
+## 2026-10-07 A100 2x10-step smoke (not formal evidence)
+
+Environment rebuilt on a new A100 server per `ENVIRONMENT.md`
+(uv-managed Python 3.10.22, torch 2.4.1+cu121, transformers 4.46.3, alfworld
+0.3.5, vendored textworld 1.6.1). ALFWorld `json_2.1.1` re-downloaded from the
+official 0.2.2 release assets; canonical enumeration reproduced
+train 3553 / valid_seen 140 / valid_unseen 134. Locked
+`Qwen2.5-7B-Instruct` revision `a09a35458c702b33eeacc393d103063234e8bc28`
+re-downloaded and loaded offline. All runs on one idle A100 80GB
+(`CUDA_VISIBLE_DEVICES=1`); the other GPU carried an unrelated service.
+
+Deviations from the 2026-09-20 plan, recorded up front: the original A10 smoke
+artifacts were not available on this machine, so the two episodes were rebuilt
+from freshly generated manifests (latent shapes `[56, 3584]` / `[60, 3584]`
+versus the A10 `[58, 3584]` / `[61, 3584]`); sample identity with the A10 run
+is NOT verified. Effective batch composition was bs2 x accum1 (same effective
+size as the A10 bs1 x accum2), seed 0 assumed, and rollouts used SDPA.
+
+Training: 2 train episodes = 2 selection episodes, 10 optimizer steps
+(lr 5e-5, AdamW, gradient checkpointing, SDPA), checkpoints at steps 1/5/10.
+Selection NLL (same two episodes): No-Comm `1.5559`; Matched by step:
+`2.0619` (1), `1.8538` (2), `1.7474` (3), `2.2957` (4), `1.4477` (5),
+`1.4338` (6), `1.2042` (7, best), `1.2378` (8), `1.2341` (9), `1.3735` (10).
+Training peak VRAM 17.16 GB allocated / 17.61 GB reserved. Patience-2 early
+stop triggered after epoch 9; step-10 checkpoint saved before stop.
+
+Matched 5-step rollouts from the step-5 and step-10 checkpoints (2 episodes
+each, 5-step cap): 20/20 responses contained exactly one parseable `Action:`,
+zero `parse_error`, and both episodes completed all 5 environment steps at
+both checkpoints; task success 0/2 (recorded only). Rollout peak VRAM
+15.9 GB allocated / 16.37 GB reserved. Cosmetic quirks observed and logged:
+leading ```` ``` ```` / `<|im_start|>` artifacts in some first-step outputs,
+and one parsed action retaining a trailing code fence
+(`go to desk 1\n``` `) that the environment rejected as invalid.
+
+This run verifies the approved A100 execution plan end to end (multi-step
+AdamW on 7B, checkpoint snapshots, format gate rollouts) but remains
+exploratory: it is not the same two episodes as the A10 smoke, it does not
+establish latent benefit, and formal single-seed, 3-seed, and Step 1B runs
+stay paused pending advisor review. Artifacts and `run_manifest.json` are
+under `data/step1_a100/` and are ignored by git.

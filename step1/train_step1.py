@@ -148,7 +148,12 @@ def main() -> int:
     ap.add_argument("--attn-implementation", choices=("eager", "sdpa"), default="eager")
     ap.add_argument("--offload-input-embeddings", action="store_true")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--smoke-checkpoint-epochs", default="",
+                    help="Comma-separated 1-based epochs for bounded smoke snapshots (e.g. 1,5,10)")
     args = ap.parse_args()
+    smoke_epochs = {int(e) for e in args.smoke_checkpoint_epochs.split(",") if e.strip()}
+    if any(e < 1 or e > args.epochs for e in smoke_epochs):
+        ap.error("smoke checkpoint epochs must lie between 1 and --epochs")
 
     if args.seed not in TRAINING_SEEDS:
         print(f"[WARN] seed {args.seed} not in official TRAINING_SEEDS {TRAINING_SEEDS}")
@@ -176,6 +181,8 @@ def main() -> int:
                              args.trajectories_dir, args.model_profile)
     sel_items = load_items(args.episode_inputs, args.selection_manifest, args.latents_dir,
                            args.trajectories_dir, args.model_profile)
+    if smoke_epochs and (len(train_items) + args.bs - 1) // args.bs > args.accum:
+        ap.error("smoke checkpoint epochs correspond to optimizer steps only with one update per epoch")
     print(f"[DATA] train={len(train_items)} selection={len(sel_items)}")
 
     trainable = [p for p in receiver.parameters() if p.requires_grad]
@@ -209,6 +216,8 @@ def main() -> int:
     best = {"nll": float("inf"), "epoch": -1}
     no_improve = 0
     receiver.train()
+    if args.device.startswith("cuda"):
+        torch.cuda.reset_peak_memory_stats(torch.device(args.device))
     for epoch in range(args.epochs):
         ep_loss, nb, opt_steps = 0.0, 0, 0
         opt.zero_grad(set_to_none=True)
@@ -235,7 +244,21 @@ def main() -> int:
             "sel_nll_matched": sel_matched["nll"], "sel_nll_no_comm": sel_nocomm["nll"],
             "nll_drop_pct": 100.0 * (sel_nocomm["nll"] - sel_matched["nll"]) / sel_nocomm["nll"],
         }
+        if args.device.startswith("cuda"):
+            rec["peak_allocated_bytes"] = torch.cuda.max_memory_allocated(torch.device(args.device))
+            rec["peak_reserved_bytes"] = torch.cuda.max_memory_reserved(torch.device(args.device))
         log(rec)
+
+        if epoch + 1 in smoke_epochs:
+            smoke_path = os.path.join(args.out_dir, f"adapter_step{epoch + 1}.pt")
+            torch.save({
+                "adapter_state": receiver.adapter.state_dict(),
+                "eval_export": receiver.adapter.state_for_eval_export(),
+                "epoch": epoch, "sel_nll": sel_matched["nll"], "seed": args.seed,
+                "model_profile": profile,
+            }, smoke_path)
+            log({"event": "smoke_checkpoint", "optimizer_step": epoch + 1,
+                 "path": smoke_path})
 
         if sel_matched["nll"] < best["nll"] - 1e-6:
             best = {"nll": sel_matched["nll"], "epoch": epoch}

@@ -313,8 +313,13 @@ def main() -> int:
                                                      norm_target, torch.bfloat16, torch.device(device))
                 else:  # no_comm
                     Z = None
+                if device.startswith("cuda"):
+                    torch.cuda.reset_peak_memory_stats(torch.device(device))
                 rec = rollout_episode(receiver, tok, game_abs, group, Z, device,
-                                      max_steps=args.max_steps)
+                                       max_steps=args.max_steps)
+                if device.startswith("cuda"):
+                    rec["peak_allocated_bytes"] = torch.cuda.max_memory_allocated(torch.device(device))
+                    rec["peak_reserved_bytes"] = torch.cuda.max_memory_reserved(torch.device(device))
                 rec.update({"episode_id": eid, "game_file": row["game_file"],
                             "task_type": row["task_type"],
                             "draw": draw, "source_split": row["source_split"]})
