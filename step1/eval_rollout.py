@@ -62,6 +62,17 @@ from step1.serialization import (
 UPSTREAM_ACTION_RE = re.compile(r"Action:\s?(.*)", re.DOTALL)
 
 
+def completed_episode_draws(previous: list, rows: list, draws: list) -> set:
+    """Resume only exact episode/draw pairs from the requested evaluation."""
+    done = {(r["episode_id"], r.get("draw")) for r in previous}
+    if len(done) != len(previous):
+        raise ValueError("duplicate episode/draw records in existing results")
+    expected = {(r["episode_id"], draw) for r in rows for draw in draws}
+    if not done <= expected:
+        raise ValueError("existing results contain episodes or draws outside this run")
+    return done
+
+
 def token_embeddings(receiver, token_ids, device: str):
     emb_layer = receiver.base_model.get_input_embeddings()
     ids = torch.tensor(token_ids, device=emb_layer.weight.device)
@@ -229,6 +240,11 @@ def main() -> int:
     groups = [g.strip() for g in args.groups.split(",") if g.strip()]
     mismatch_draws = [int(x) for x in args.mismatch_draws.split(",") if x]
     random_draws = [int(x) for x in args.random_draws.split(",") if x]
+    supported = {"matched", "no_comm", "raw", "zero", "mismatched", "random"}
+    if set(groups) - supported:
+        ap.error(f"unsupported groups: {sorted(set(groups) - supported)}")
+    if len(groups) != len(set(groups)) or len(mismatch_draws) != len(set(mismatch_draws)) or len(random_draws) != len(set(random_draws)):
+        ap.error("duplicate group or draw would duplicate results")
 
     with open(args.episode_inputs, "r", encoding="utf-8") as f:
         episode_inputs = json.load(f)
@@ -268,13 +284,13 @@ def main() -> int:
 
     for group in groups:
         out_path = os.path.join(args.out_dir, "results", f"{group}.jsonl")
-        done_ids = {r["episode_id"] for r in read_jsonl(out_path)} if os.path.exists(out_path) else set()
+        allowed_draws = mismatch_draws if group == "mismatched" else random_draws if group == "random" else [None]
+        previous = read_jsonl(out_path) if os.path.exists(out_path) else []
+        done_keys = completed_episode_draws(previous, rows, allowed_draws)
 
         if group == "mismatched":
             by_type = {}
             for r in rows:
-                if r["episode_id"] in done_ids:
-                    continue
                 by_type.setdefault(r["task_type"], []).append(
                     {**r, "L_i": int(latent_for(r["episode_id"]).shape[0])})
         else:
@@ -284,11 +300,18 @@ def main() -> int:
                      random_draws if group == "random" else [None]):
             if group == "mismatched":
                 mapping = build_mismatched_mapping(by_type, draw)
-                write_json(os.path.join(args.out_dir, f"mismatched_mapping_draw{draw}.json"), mapping)
+                mapping_path = os.path.join(args.out_dir, f"mismatched_mapping_draw{draw}.json")
+                if os.path.exists(mapping_path):
+                    with open(mapping_path, encoding="utf-8") as f:
+                        old_mapping = json.load(f)
+                    if old_mapping != mapping:
+                        raise ValueError(f"mismatch mapping changed on resume: {mapping_path}")
+                else:
+                    write_json(mapping_path, mapping)
             n_ok = 0
             for i, row in enumerate(rows):
                 eid = row["episode_id"]
-                if eid in done_ids:
+                if (eid, draw) in done_keys:
                     continue
                 info = episode_inputs[eid]
                 game_abs = os.path.join(args.alfworld_data, info["game_file"])
