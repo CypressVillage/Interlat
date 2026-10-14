@@ -9,7 +9,7 @@ Subcommands, each writing one JSON artifact under --out-dir:
   clamp          matched-message stats + exact recompute of the adapter chain
                  (equality proves no hidden clamp/quantization in the path)
   alignment      token-hidden alignment check from extraction debug artifacts
-  parser         evaluator parser vs upstream regex on tricky strings
+  parser         evaluator parser vs cleaned upstream regex on tricky strings
   earlystop      training-log validation: per-epoch NLL, best-checkpoint and
                  patience behavior
   prefix         multi-turn prefix stability of apply_chat_template
@@ -223,6 +223,7 @@ def cmd_parser(args):
         ("Action: take nothing", "take nothing"),
         ("no action here at all", None),
         ("Thought: x\nAction:   spaced   ", "  spaced   "),
+        ("Thought: x\nAction: go to desk 1\n``` ", "go to desk 1\n``` "),
     ]
     rows = []
     ok = True
@@ -233,9 +234,11 @@ def cmd_parser(args):
             ours = parse_action(text)
         except Exception:
             ours = None
-        match = (ours == upstream) and (upstream == expected_upstream)
+        expected = upstream.strip(" \t\r\n`") if upstream is not None else None
+        match = (ours == expected) and (upstream == expected_upstream)
         ok = ok and match
-        rows.append({"text": text, "upstream": upstream, "ours": ours, "match": match})
+        rows.append({"text": text, "upstream": upstream, "cleaned_expected": expected,
+                     "ours": ours, "match": match})
     artifact = {"rows": rows, "terminator_check": verify_terminator(load_locked_tokenizer()), "ok": ok}
     write_json(os.path.join(args.out_dir, "smoke_parser.json"), artifact)
     print(f"[OK] parser check ok={ok}")

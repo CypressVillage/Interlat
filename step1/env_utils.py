@@ -39,15 +39,15 @@ def split_task_and_initial_observation(obs_stripped: str) -> Tuple[str, str]:
 
 
 def parse_action(llm_output: str) -> str:
-    """Upstream evaluator parser: first 'Action:' match (DOTALL), raises if absent.
+    """Extract the upstream Action match and remove boundary Markdown backticks.
 
-    Byte-identical to UPSTREAM_ACTION_RE.findall(llm_output)[0] — no extra
-    stripping — so smoke parser comparisons are exact.
+    The advisor-approved cleanup removes only whitespace/backticks at the
+    boundary; it does not repair or reinterpret the action itself.
     """
     matches = re.findall(re.compile(r"Action:\s?(.*)", re.DOTALL), llm_output)
     if not matches:
         raise ValueError("no 'Action:' in llm_output")
-    return matches[0]
+    return matches[0].strip(" \t\r\n`")
 
 
 def thought_for_action(action: str) -> str:
