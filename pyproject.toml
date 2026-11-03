@@ -71,8 +71,8 @@ Source = "https://github.com/XiaoDu-flying/Interlat"
 
 [tool.setuptools.packages.find]
 include = [
-    "step1",
-    "step1.*",
+    "scripts",
+    "scripts.*",
 ]
 
 [tool.setuptools.package-data]

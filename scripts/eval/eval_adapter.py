@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from scripts.common import (HIDDEN_SIZE, N_VALID_SEEN, RECEIVER_MAX_NEW_TOKENS,
-    EVAL_MAX_STEPS, sha256_file, write_json)
+    EVAL_MAX_STEPS, DEFAULT_RUN_DIR, sha256_file, write_json)
 from scripts.eval.controls import make_mismatched_message, make_random_message, build_mismatched_mapping
 from scripts.alfworld_utils import make_plain_tw_env, parse_action, process_ob, strip_intro_text
 from scripts.model.runtime import (BASE, BASE_REVISION, load_receiver, load_rows, adapted,
@@ -134,10 +134,12 @@ def paired(matched,control):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--data',required=True);ap.add_argument('--latents',required=True)
-    ap.add_argument('--train-dir',required=True);ap.add_argument('--out-dir',required=True)
-    ap.add_argument('--selection');ap.add_argument('--train-latents')
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('--data',default=f'{DEFAULT_RUN_DIR}/valid_seen.jsonl',help='prepared evaluation inputs')
+    ap.add_argument('--latents',default=f'{DEFAULT_RUN_DIR}/eval_latents',help='evaluation Sender cache')
+    ap.add_argument('--train-dir',default=f'{DEFAULT_RUN_DIR}/train',help='training checkpoints')
+    ap.add_argument('--out-dir',default=f'{DEFAULT_RUN_DIR}/eval',help='evaluation output directory')
+    ap.add_argument('--selection');ap.add_argument('--train-latents',default=f'{DEFAULT_RUN_DIR}/latents',help='training Sender cache for optional selection diagnostics')
     a = ap.parse_args();out = Path(a.out_dir);out.mkdir(parents=True,exist_ok=True)
     provenance = {'data':sha256_file(a.data),
         'latents_config':sha256_file(str(Path(a.latents)/'config.json')),

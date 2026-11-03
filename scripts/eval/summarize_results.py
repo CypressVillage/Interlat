@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 from scripts.common import (RECEIVER_MODEL, ADAPTER_PARAM_COUNT, GLOBAL_BATCH,
-    TRAIN_SEED, N_VALID_SEEN, sha256_file, write_json)
+    TRAIN_SEED, N_VALID_SEEN, DEFAULT_RUN_DIR, sha256_file, write_json)
 
 GROUPS = ('matched','no_comm','mismatched','mismatched_control','zero','random','text')
 
@@ -83,8 +83,8 @@ def training_records(directory, visited=None):
 
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--root',required=True,help='artifact root containing cache audits and valid_seen.jsonl')
+    ap=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('--root',default=DEFAULT_RUN_DIR,help='artifact root containing cache audits and valid_seen.jsonl')
     ap.add_argument('--train-dir',help='default: <root>/train; may point to a continuation directory')
     ap.add_argument('--eval-dir',help='default: <root>/eval')
     a=ap.parse_args();root=Path(a.root)
@@ -225,7 +225,7 @@ def main():
         '- Useful behavior requires actual environment actions and task completion, not merely a lower SFT loss or parsable syntax.',
         '- Read matched-vs-control success together with formatting, admissibility, initial/last checkpoints, and the actual update budget.',
         '- No positive outcome is required for this experiment to be complete. A negative outcome is specific to this budget, model pair, data quality, and explicitly chosen schedule.',
-        '- Public paper/code discrepancies, BF16 SDPA versus FlashAttention-2, native accumulation versus DeepSpeed, GB10/ARM environment differences, and the one-seed limit are recorded in `step1/docs/FROZEN_RECEIVER_V1.md`.',
+        '- Public paper/code discrepancies, BF16 SDPA versus FlashAttention-2, native accumulation versus DeepSpeed, GB10/ARM environment differences, and the one-seed limit are recorded in `scripts/docs/FROZEN_RECEIVER_V1.md`.',
         '- The failed approximate full-prefill alignment diagnostic remains saved; exact same-batch prediction-position replays passed.','',
         '## Traceability','',
         f'Artifacts: `{root}`. Training: `{train}`. Evaluation: `{evaluation}`. Machine-readable checks: `completion_audit.json`. Source hashes: training `config.json`; continuation checkpoint/log lineage is verified. No remote publication or Issue-state change was performed.','']

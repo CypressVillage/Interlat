@@ -6,7 +6,7 @@ Actions use the evaluator parser unchanged. No model, GPU, or 20-action cap is u
 import argparse
 import json
 from importlib.metadata import version
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from scripts.alfworld_utils import (
     make_plain_tw_env,
@@ -14,22 +14,11 @@ from scripts.alfworld_utils import (
     process_ob,
     strip_intro_text,
 )
-from scripts.common import sha256_file, write_json
+from scripts.common import ETO_DATA, ALFWORLD_GAMES, DEFAULT_RUN_DIR, sha256_file, write_json
 
 
 def normalize(text):
     return ' '.join(text.split())
-
-
-def game_path(source_path):
-    """Accept published paths or train-relative paths, never other splits/traversal."""
-    relative = source_path.split('json_2.1.1/', 1)[-1].rstrip('/')
-    path = PurePosixPath(relative)
-    if path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0] != 'train':
-        raise ValueError(f'expected a train game path: {source_path}')
-    if path.name != 'game.tw-pddl':
-        path = path / 'game.tw-pddl'
-    return path.as_posix()
 
 
 def replay(row, games):
@@ -45,9 +34,7 @@ def replay(row, games):
     }
     env = None
     try:
-        relative = game_path(row['game_file'])
-        record['game_file'] = relative
-        game = (games / relative).resolve()
+        game = (Path(row['game_file']) / 'game.tw-pddl').resolve()
         if not game.is_relative_to(games.resolve()):
             raise ValueError('game resolves outside --games')
         record['game_sha256'] = sha256_file(str(game))
@@ -110,25 +97,23 @@ def replay(row, games):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--data', required=True, help='published ETO trajectory JSON array')
-    parser.add_argument('--games', required=True, help='ALFWorld json_2.1.1 directory containing train/')
-    parser.add_argument('--out-dir', required=True, help='new directory; existing outputs are never overwritten')
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/replay', help='new directory; existing outputs are never overwritten')
     parser.add_argument('--limit', type=int, default=0, help='audit only the first N records; 0 means all')
     args = parser.parse_args()
     if args.limit < 0:
         parser.error('--limit must be nonnegative')
 
-    source = Path(args.data).resolve()
-    games = Path(args.games).resolve()
+    source = Path(ETO_DATA).resolve()
+    games = Path(ALFWORLD_GAMES).resolve()
     if not (games / 'train').is_dir():
-        parser.error('--games must contain the train/ directory')
+        parser.error(f'ALFWORLD_GAMES must contain the train/ directory: {games}')
     rows = json.loads(source.read_text())
     if not isinstance(rows, list) or not rows:
-        parser.error('--data must contain a nonempty JSON array')
+        parser.error(f'ETO_DATA must contain a nonempty JSON array: {source}')
     ids = [row['id'] for row in rows]
     if len(set(ids)) != len(ids):
-        parser.error('duplicate trajectory IDs in --data')
+        parser.error(f'duplicate trajectory IDs in ETO_DATA: {source}')
     source_count = len(rows)
     if args.limit:
         rows = rows[:args.limit]

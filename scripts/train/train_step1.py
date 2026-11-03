@@ -10,7 +10,7 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
-from scripts.common import TRAIN_SEED, GLOBAL_BATCH, sha256_file, write_json
+from scripts.common import TRAIN_SEED, GLOBAL_BATCH, PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json
 from scripts.model.runtime import (BASE, BASE_REVISION, load_receiver, load_rows, adapted,
     text_message, supervised_hidden, nll, parameter_fingerprint)
 
@@ -141,9 +141,11 @@ def resume_history(checkpoint_path, resume):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--fit', required=True); ap.add_argument('--selection', required=True)
-    ap.add_argument('--latents', required=True); ap.add_argument('--out-dir', required=True)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('--fit', default=f'{PREPARED_DIR}/fit.jsonl', help='prepared fit tasks')
+    ap.add_argument('--selection', default=f'{PREPARED_DIR}/selection.jsonl', help='prepared checkpoint-selection tasks')
+    ap.add_argument('--latents', default=f'{DEFAULT_RUN_DIR}/latents', help='Sender cache directory')
+    ap.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/train', help='new training output directory')
     ap.add_argument('--epochs', type=int, default=3)
     ap.add_argument('--max-hours', type=float, default=24, help='0 disables the wall-clock limit')
     ap.add_argument('--resume-epoch', help='completed-epoch checkpoint; restart AdamW from saved adapter weights')
@@ -169,7 +171,7 @@ def main():
         assert previous['fit_count'] == len(fit) and previous['selection_count'] == len(selection)
         assert previous['global_batch'] == group_size and previous['max_updates'] == total_steps
         for source, digest in previous['source_hashes'].items():
-            if source != 'step1/train/train_step1.py':
+            if source != 'scripts/train/train_step1.py':
                 assert sha256_file(source) == digest, f'resume source mismatch: {source}'
         start_step = resume['step']
         steps_per_epoch = math.ceil(len(fit)/group_size)
@@ -190,9 +192,9 @@ def main():
         'normalization': 'supervised-token mean within each optimizer batch, including partial last batch',
         'source_hashes': {p: sha256_file(p) for p in [a.fit,a.selection,
             str(Path(a.latents)/'config.json'),
-            'step1/train/train_step1.py','step1/model/runtime.py',
-            'step1/common.py','step1/model/serialization.py','step1/eval/controls.py',
-            'step1/model/adapter.py']},
+            'scripts/train/train_step1.py','scripts/model/runtime.py',
+            'scripts/common.py','scripts/model/serialization.py','scripts/eval/controls.py',
+            'scripts/model/adapter.py']},
         'freeze': freeze, 'delimiter_init': receiver.delimiter_init_report,
         'resume': None if resume is None else {'checkpoint_sha256': sha256_file(a.resume_epoch),
             'step': start_step, 'completed_epochs': start_epoch, 'optimizer_reset': True,

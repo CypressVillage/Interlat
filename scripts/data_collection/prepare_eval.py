@@ -3,19 +3,17 @@ import argparse
 import json
 from pathlib import Path
 from scripts.alfworld_utils import make_plain_tw_env, strip_intro_text, list_games
-from scripts.common import N_VALID_SEEN, sha256_file, write_json
+from scripts.common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, DEFAULT_RUN_DIR, sha256_file, write_json
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--source', required=True)
-    ap.add_argument('--games', required=True)
-    ap.add_argument('--out', required=True)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('--out', default=f'{DEFAULT_RUN_DIR}/valid_seen.jsonl', help='new evaluation input file')
     a = ap.parse_args()
     out = Path(a.out)
     assert not out.exists()
-    instruction = json.loads(Path(a.source).read_text())[0]['conversations'][0]['value']
-    games = [Path(a.games)/p for p in list_games(a.games, 'valid_seen')]
+    instruction = json.loads(Path(ETO_DATA).read_text())[0]['conversations'][0]['value']
+    games = [Path(ALFWORLD_GAMES)/p for p in list_games(ALFWORLD_GAMES, 'valid_seen')]
     assert len(games) == N_VALID_SEEN, len(games)
     rows = []
     for i, game in enumerate(games):
@@ -33,7 +31,7 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(''.join(json.dumps(r)+'\n' for r in rows))
     write_json(str(out.with_suffix('.manifest.json')), {'count': len(rows),
-        'sha256': sha256_file(str(out)), 'source': sha256_file(a.source),
+        'sha256': sha256_file(str(out)), 'source': sha256_file(ETO_DATA),
         'scope': 'All 140 valid_seen initial states. No expert actions; valid_unseen untouched.'})
 
 

@@ -82,7 +82,9 @@ uv run torch-gpu-smi 2>/dev/null || uv run python -c "import torch; x=torch.rand
 
 ### GB10 ARM 诊断环境（2026-10-23，与 A100 锁定环境不同）
 
-本机已有 GPU 检查记录见 `data/gb10_env_probe/cuda_smoke_result.json`。
+以下为历史环境诊断记录。2026-11-03 按用户要求删除了本地旧实验产物，
+包括 `data/gb10_env_probe/`；文中旧日志路径不表示文件仍存在。环境本身与模型缓存保留。
+当时 GPU 检查记录位于 `data/gb10_env_probe/cuda_smoke_result.json`。
 GB10 使用现有 `.venv` 中的 `torch==2.9.1+cu128`，不是上文 x86/A100
 使用的 torch 2.4.1。不能把本机诊断宣称为锁定环境的正式复现，也不要直接
 `uv sync` 覆盖此环境；原 `pyproject.toml` / `uv.lock` 未为此改写。
@@ -112,6 +114,7 @@ torch 还会提示设备 capability 12.1 超出其声明的 12.0 上限；这些
 
 ALFWorld 数据来自官方 release 0.2.2 的 `json_2.1.1_json.zip` 与
 `json_2.1.1_tw-pddl.zip`，存放于 `data/step1_05b_20261023/alfworld/`。
+游戏数据已于 2026-11-03 迁至 `data/alfworld/json_2.1.1/`，旧下载压缩包已删除。
 仅枚举 reserved split 不等于运行其任务；本次不运行 `valid_unseen`。
 
 ### 常见问题

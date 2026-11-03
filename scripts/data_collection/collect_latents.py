@@ -12,7 +12,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from scripts.common import (SENDER_MODEL as MODEL, SENDER_REVISION as REVISION,
-    SENDER_MAX_NEW_TOKENS, sha256_file, write_json)
+    SENDER_MAX_NEW_TOKENS, PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json)
 
 
 def sender_prompt(task):
@@ -66,9 +66,9 @@ def collect_batch(model, tok, rows, cap):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--data', nargs='+', required=True)
-    ap.add_argument('--out-dir', required=True)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('--data', nargs='+', default=[f'{PREPARED_DIR}/fit.jsonl', f'{PREPARED_DIR}/selection.jsonl'], help='prepared task JSONL files')
+    ap.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/latents', help='Sender cache directory')
     ap.add_argument('--batch-size', type=int, default=8)
     ap.add_argument('--max-new-tokens', type=int, default=SENDER_MAX_NEW_TOKENS)
     ap.add_argument('--limit', type=int, default=0)

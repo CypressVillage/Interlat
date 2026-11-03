@@ -5,6 +5,14 @@ import hashlib
 import json
 import os
 
+# Run commands from the project's code/ directory.
+CODE_ROOT = os.getcwd()
+DATA_ROOT = f'{CODE_ROOT}/data'
+ETO_DATA = f'{DATA_ROOT}/eto/alfworld_sft.json'
+ALFWORLD_GAMES = f'{DATA_ROOT}/json_2.1.1'
+PREPARED_DIR = f'{DATA_ROOT}/prepared'
+DEFAULT_RUN_DIR = f'{DATA_ROOT}/runs/frozen_receiver_v1'
+
 # Use locally cached models.
 os.environ.setdefault('HF_HUB_OFFLINE', '1')
 os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')

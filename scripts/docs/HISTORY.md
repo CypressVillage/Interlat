@@ -11,7 +11,8 @@ tools, retired diagnostic wrappers, one-off pipeline runner, and all Step 1 test
 files have been removed. Historical test results and commands below are not
 claims about a current retained test suite. Current names are `runtime.py`,
 `prepare_data.py`, `prepare_eval.py`, `collect_latents.py`,
-`train_step1.py`, `eval_adapter.py`, and `summarize_results.py`; consult the README
+`scripts/train/train_step1.py`, `scripts/eval/eval_adapter.py`, and
+`scripts/eval/summarize_results.py`; consult the README
 for the live workflow. The old `run_paper_v1.py` orchestration is represented by
 its source snapshot and the recorded commands/artifacts, not another active runner.
 
@@ -506,11 +507,11 @@ hashes have changed, and strict resume checks must not be bypassed. All paths
 are relative to `latent-communication/code/`.
 
 The historical training module name below was `step1.train_paper_adapter`.
-Its implementation now lives at the sole current entry point `step1.train_step1`;
+Its implementation now lives at the sole current entry point `scripts.train.train_step1`;
 the old module has been removed. The historical commands are not rewritten,
 and the current entry point still enforces source-hash checks on resume.
 Likewise, the historical `step1.eval_paper_adapter` implementation is now
-`step1.eval_adapter`; both the old name and the older CE-only `eval_rollout.py`
+`scripts.eval.eval_adapter`; both the old name and the older CE-only `eval_rollout.py`
 entry point have been removed. Historical commands below require their original
 source snapshot, not a mixture of old arguments and current evaluation code.
 
