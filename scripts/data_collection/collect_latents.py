@@ -9,10 +9,11 @@ import json
 import time
 from pathlib import Path
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from scripts.common import (SENDER_MODEL as MODEL, SENDER_REVISION as REVISION,
     SENDER_MAX_NEW_TOKENS, PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json)
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def sender_prompt(task):
@@ -65,14 +66,25 @@ def collect_batch(model, tok, rows, cap):
     return [(ts, torch.stack(hs)) for ts, hs in zip(tokens, states)]
 
 
-def main():
+def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--data', nargs='+', default=[f'{PREPARED_DIR}/fit.jsonl', f'{PREPARED_DIR}/selection.jsonl'], help='prepared task JSONL files')
-    ap.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/latents', help='Sender cache directory')
+    ap.add_argument('--split', choices=('train', 'eval'), default='train', help='train: PREPARED fit/selection to RUN/latents; eval: RUN/valid_seen.jsonl to RUN/eval_latents')
+    ap.add_argument('--data', nargs='+', help='override the input paths selected by --split')
+    ap.add_argument('--out-dir', help='override the cache directory selected by --split')
     ap.add_argument('--batch-size', type=int, default=8)
     ap.add_argument('--max-new-tokens', type=int, default=SENDER_MAX_NEW_TOKENS)
     ap.add_argument('--limit', type=int, default=0)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
+    if a.data is None:
+        a.data = ([f'{PREPARED_DIR}/fit.jsonl', f'{PREPARED_DIR}/selection.jsonl']
+                  if a.split == 'train' else [f'{DEFAULT_RUN_DIR}/valid_seen.jsonl'])
+    if a.out_dir is None:
+        a.out_dir = f'{DEFAULT_RUN_DIR}/latents' if a.split == 'train' else f'{DEFAULT_RUN_DIR}/eval_latents'
+    return a
+
+
+def main():
+    a = parse_args()
     out = Path(a.out_dir); out.mkdir(parents=True, exist_ok=True)
     rows = [json.loads(line) for p in a.data for line in Path(p).read_text().splitlines()]
     if a.limit:

@@ -6,11 +6,12 @@ import hashlib
 import json
 from pathlib import Path
 
+from scripts.common import (RECEIVER_MODEL as BASE, RECEIVER_REVISION as BASE_REVISION,
+    HIDDEN_SIZE, ADAPTER_HEADS, ADAPTER_PARAM_COUNT)
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from scripts.model.adapter import ReceiverWithLatent, Step1Adapter
-from scripts.common import (RECEIVER_MODEL as BASE, RECEIVER_REVISION as BASE_REVISION,
-    HIDDEN_SIZE, ADAPTER_HEADS, ADAPTER_PARAM_COUNT)
 from scripts.model.serialization import BOP, EOP, render
 
 

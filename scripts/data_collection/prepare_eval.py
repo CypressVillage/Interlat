@@ -12,7 +12,8 @@ def main():
     a = ap.parse_args()
     out = Path(a.out)
     assert not out.exists()
-    instruction = json.loads(Path(ETO_DATA).read_text())[0]['conversations'][0]['value']
+    with open(ETO_DATA) as stream:
+        instruction = json.load(stream)[0]['conversations'][0]['value']
     games = [Path(ALFWORLD_GAMES)/p for p in list_games(ALFWORLD_GAMES, 'valid_seen')]
     assert len(games) == N_VALID_SEEN, len(games)
     rows = []

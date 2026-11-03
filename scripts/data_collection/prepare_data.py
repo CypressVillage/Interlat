@@ -60,7 +60,8 @@ def main():
     arg = ap.parse_args()
 
     out = Path(arg.out_dir)
-    raw = json.loads(Path(ETO_DATA).read_text())
+    with open(ETO_DATA) as stream:
+        raw = json.load(stream)
     audit = { r['id']: r for r in map(json.loads,Path(arg.audit).read_text().splitlines()) }
     rows = [ convert(r, ALFWORLD_GAMES) for r in raw ]
     assert len({r['id'] for r in rows}) == len(rows) == len(audit)

@@ -5,8 +5,8 @@ Actions use the evaluator parser unchanged. No model, GPU, or 20-action cap is u
 """
 import argparse
 import json
+import os
 from importlib.metadata import version
-from pathlib import Path
 
 from scripts.alfworld_utils import (
     make_plain_tw_env,
@@ -34,10 +34,11 @@ def replay(row, games):
     }
     env = None
     try:
-        game = (Path(row['game_file']) / 'game.tw-pddl').resolve()
-        if not game.is_relative_to(games.resolve()):
-            raise ValueError('game resolves outside --games')
-        record['game_sha256'] = sha256_file(str(game))
+        game = os.path.join(row['game_file'], 'game.tw-pddl')
+        games_root = os.path.realpath(games)
+        if os.path.commonpath([os.path.realpath(game), games_root]) != games_root:
+            raise ValueError('game resolves outside ALFWORLD_GAMES')
+        record['game_sha256'] = sha256_file(game)
 
         turns = row['conversations']
         if len(turns) < 4 or [turn['from'] for turn in turns[:3]] != ['human', 'gpt', 'human']:
@@ -47,7 +48,7 @@ def replay(row, games):
             if turn['from'] != expected_role:
                 raise ValueError(f'nonalternating dialogue at turn {i}')
 
-        env = make_plain_tw_env(str(game))
+        env = make_plain_tw_env(game)
         state = env.reset()
         actual = strip_intro_text(state['feedback'])
         expected = turns[2]['value']
@@ -104,41 +105,33 @@ def main():
     if args.limit < 0:
         parser.error('--limit must be nonnegative')
 
-    source = Path(ETO_DATA).resolve()
-    games = Path(ALFWORLD_GAMES).resolve()
-    if not (games / 'train').is_dir():
-        parser.error(f'ALFWORLD_GAMES must contain the train/ directory: {games}')
-    rows = json.loads(source.read_text())
-    if not isinstance(rows, list) or not rows:
-        parser.error(f'ETO_DATA must contain a nonempty JSON array: {source}')
-    ids = [row['id'] for row in rows]
+    with open(ETO_DATA) as stream:
+        rows = json.load(stream)
+    ids = [ row['id'] for row in rows ]
     if len(set(ids)) != len(ids):
-        parser.error(f'duplicate trajectory IDs in ETO_DATA: {source}')
+        parser.error(f'duplicate trajectory IDs in ETO_DATA: {ETO_DATA}')
     source_count = len(rows)
     if args.limit:
         rows = rows[:args.limit]
 
-    out = Path(args.out_dir)
-    out.mkdir(parents=True, exist_ok=False)
+    os.makedirs(args.out_dir, exist_ok=False)
     config = {
-        'source': str(source),
-        'source_sha256': sha256_file(str(source)),
+        'source': ETO_DATA,
+        'source_sha256': sha256_file(ETO_DATA),
         'source_records': source_count,
-        'games': str(games),
+        'games': ALFWORLD_GAMES,
         'limit': args.limit,
         'script_sha256': sha256_file(__file__),
-        'environment_helpers_sha256': sha256_file(str(Path(__file__).parents[1] / 'alfworld_utils.py')),
+        'environment_helpers_sha256': sha256_file(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'alfworld_utils.py')),
         'versions': {name: version(name) for name in ('alfworld', 'textworld')},
-        'comparison': 'Collapse whitespace; strip initial intro and apply process_ob to step feedback.',
-        'actions': 'Original actions parsed with evaluator parse_action; no rewriting or step cap.',
         'filtering': 'none',
     }
-    write_json(str(out / 'config.json'), config)
+    write_json(os.path.join(args.out_dir, 'config.json'), config)
 
     results = []
-    with (out / 'replay.jsonl').open('w') as stream:
+    with open(os.path.join(args.out_dir, 'replay.jsonl'), 'w') as stream:
         for row in rows:
-            record = replay(row, games)
+            record = replay(row, ALFWORLD_GAMES)
             stream.write(json.dumps(record, ensure_ascii=False) + '\n')
             stream.flush()
             results.append(record)
@@ -159,11 +152,9 @@ def main():
             'error' not in r and r['observations_compared'] > 0 and r['observation_mismatches'] == 0
             for r in results
         ),
-        'comparison': config['comparison'],
-        'note': 'Current-environment replay, not model evaluation or proof of exact paper data provenance; no records filtered.',
-        'replay_sha256': sha256_file(str(out / 'replay.jsonl')),
+        'replay_sha256': sha256_file(os.path.join(args.out_dir, 'replay.jsonl')),
     }
-    write_json(str(out / 'summary.json'), summary)
+    write_json(os.path.join(args.out_dir, 'summary.json'), summary)
     print(json.dumps(summary, ensure_ascii=False), flush=True)
 
 
