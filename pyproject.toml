@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hidden-state-training"
 version = "1.0.0"
-description = "A comprehensive framework for training language models enhanced with hidden state representations"
+description = "Step 1 frozen-receiver latent communication workflow"
 readme = "README.md"
 authors = [{ name = "Hidden State Training Team", email = "contact@hidden-state-training.com" }]
 requires-python = ">=3.10,<3.12"
@@ -64,14 +64,6 @@ full = [
     "triton>=2.0.0",
 ]
 
-[project.scripts]
-hst-collect = "data_collection.collect_data:main"
-hst-train = "core_training.train:train"
-hst-compress = "compression_training.compress:main"
-interlat-collect = "data_collection.collect_data:main"
-interlat-train = "core_training.train:train"
-interlat-compress = "compression_training.compress:main"
-
 [project.urls]
 Homepage = "https://github.com/XiaoDu-flying/Interlat"
 "Bug Reports" = "https://github.com/XiaoDu-flying/Interlat/issues"
@@ -79,14 +71,8 @@ Source = "https://github.com/XiaoDu-flying/Interlat"
 
 [tool.setuptools.packages.find]
 include = [
-    "compression_training",
-    "compression_training.*",
-    "core_training",
-    "core_training.*",
-    "data_collection",
-    "data_collection.*",
-    "eval",
-    "eval.*",
+    "step1",
+    "step1.*",
 ]
 
 [tool.setuptools.package-data]
