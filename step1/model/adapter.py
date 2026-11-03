@@ -1,31 +1,34 @@
-"""Step 1A adapter and Receiver-side injection (protocol §5, §7).
+"""Shared paper-aligned adapter and Receiver-side embedding injection.
 
 Step1Adapter is exactly the upstream full-length `process_hidden_states`
 chain (core_training/hidden_model/custom_model.py:16-177):
   pre_ln(LN eps=1e-6) -> 8-head self-attention (dropout 0.1) -> residual ->
   post_ln(LN eps=1e-6) -> AdaptiveProjection(Linear-GELU-LN-Linear + 2 scales)
 with NO clamp anywhere (upstream wrapper.forward clamps; we never call it).
+Adapter computation stays float32, with no unused attention-weight output.
 Trainable parameters = hidden_mha + pre_ln + post_ln + adaptive_proj
-= 4,827,650. Root-level `scale`/`output_scale` alias registrations do not
+= 6D² + 12D + 2 (4,827,650 at D=896; 77,113,346 at D=3584).
+Root-level `scale`/`output_scale` alias registrations do not
 exist here; the two underlying Parameters stay inside adaptive_proj.
 
-ReceiverWithLatent splices [<bop>; A_theta(H_i); <eop>] once after the first
-user turn at embedding level; continuous positions get attention mask 1 and
+ReceiverWithLatent splices [<bop>; A_theta(H_i); <eop>] once at the rendered
+injection index, inside the first user turn. Continuous positions get attention mask 1 and
 labels -100. Delimiter embeddings are initialized to the mean of the original
 input-embedding vocabulary; all token embeddings (tied LM head included) are
-then frozen. The ONLY training forward is the single CE forward.
+then frozen. The convenience forward computes CE; the three-branch paper
+trainer uses runtime and its own loss functions for its additional objectives.
 """
 
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
 import torch.nn as nn
 
-from step1.common import DEFAULT_MODEL_PROFILE, LATENT_EXPECTED_DIM, get_model_profile
-from step1.serialization import RenderedInput, bop_eop_ids, render_with_labels
+from step1.common import HIDDEN_SIZE, ADAPTER_HEADS
+from step1.serialization import RenderedInput, bop_eop_ids
 
 _ADAPTER_MODULES = ("hidden_mha", "pre_ln", "post_ln", "adaptive_proj")
 # params live as "<owner>.<module>.<...>"; owner is "adapter" on ReceiverWithLatent
@@ -49,7 +52,7 @@ def _supervised_token_ce(lm_head, hidden_states: torch.Tensor,
 
 
 class Step1Adapter(nn.Module):
-    def __init__(self, hidden_size: int = LATENT_EXPECTED_DIM, num_heads: int = 8):
+    def __init__(self, hidden_size: int = HIDDEN_SIZE, num_heads: int = ADAPTER_HEADS):
         from core_training.hidden_model.custom_model import (
             AdaptiveProjection as UpstreamAdaptiveProjection,
         )
@@ -72,32 +75,14 @@ class Step1Adapter(nn.Module):
             nn.init.constant_(self.hidden_mha.out_proj.bias, 0.0)
 
     def process_hidden_states(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        """No clamp. Returns output in the input dtype."""
-        orig_dtype = hidden_states.dtype
-        normed = self.pre_ln(hidden_states)
-        attn_output, _ = self.hidden_mha(normed, normed, normed)
+        """Paper operator: float32 computation, no clamp or attention-weight output."""
+        normed = self.pre_ln(hidden_states.float())
+        attn_output, _ = self.hidden_mha(normed, normed, normed, need_weights=False)
         attn_output = self.post_ln(normed + attn_output)
-        projected = self.adaptive_proj(attn_output)
-        return projected.to(orig_dtype)
+        return self.adaptive_proj(attn_output)
 
     def param_count(self) -> int:
         return sum(p.numel() for p in self.parameters())
-
-    def state_for_eval_export(self) -> Dict:
-        return {
-            "hidden_mha": self.hidden_mha.state_dict(),
-            "pre_ln": self.pre_ln.state_dict(),
-            "post_ln": self.post_ln.state_dict(),
-            "adaptive_proj": self.adaptive_proj.state_dict(),
-            "scale": float(self.adaptive_proj.scale.detach().item()),
-            "output_scale": float(self.adaptive_proj.output_scale.detach().item()),
-        }
-
-    def load_eval_export(self, state: Dict):
-        self.hidden_mha.load_state_dict(state["hidden_mha"])
-        self.pre_ln.load_state_dict(state["pre_ln"])
-        self.post_ln.load_state_dict(state["post_ln"])
-        self.adaptive_proj.load_state_dict(state["adaptive_proj"])
 
 
 class ReceiverWithLatent(nn.Module):
@@ -114,13 +99,23 @@ class ReceiverWithLatent(nn.Module):
         emb = base_model.get_input_embeddings()
         vocab = emb.weight.shape[0]
         tok_len = len(tok)
+        # Tokenizers can allocate new IDs inside a model's padded vocabulary.
+        # Initialize the delimiter IDs explicitly even when no resize is needed.
+        mean_vec = emb.weight.detach().mean(dim=0)
         if tok_len > vocab:
-            mean_vec = emb.weight.detach().mean(dim=0)
             base_model.resize_token_embeddings(tok_len)
-            new_emb = base_model.get_input_embeddings()
-            with torch.no_grad():
-                for row in range(vocab, tok_len):
-                    new_emb.weight[row] = mean_vec.to(new_emb.weight.dtype)
+        new_emb = base_model.get_input_embeddings()
+        with torch.no_grad():
+            for row in set(range(vocab, tok_len)) | {self.bop_id, self.eop_id}:
+                new_emb.weight[row] = mean_vec.to(new_emb.weight.dtype)
+        self.delimiter_init_report = {
+            "tokenizer_length": tok_len, "original_embedding_rows": vocab,
+            "ids": [self.bop_id, self.eop_id],
+            "mean_norm": float(mean_vec.float().norm()),
+            "equals_mean": all(torch.equal(new_emb.weight[i], mean_vec.to(new_emb.weight.dtype))
+                               for i in (self.bop_id, self.eop_id)),
+        }
+        assert self.delimiter_init_report["equals_mean"]
         self.bop_emb_row = self.bop_id
         self.eop_emb_row = self.eop_id
         self.base_model.config.use_cache = False
@@ -163,7 +158,7 @@ class ReceiverWithLatent(nn.Module):
 
     # ------------------------------------------------------------- building
     def build_training_batch(self, batch: List[Dict], latent_key: str = "Z") -> Dict:
-        """batch items: {"rendered": RenderedInput, "Z": torch.Tensor [L,896] float32}
+        """batch items: {"rendered": RenderedInput, "Z": torch.Tensor [L,D]}.
 
         `latent` is the message to inject: raw H_i ("raw") or already-processed
         Z_i = A_theta(H_i) ("matched"/"mismatched"/"zero"/"random").
@@ -253,7 +248,7 @@ class ReceiverWithLatent(nn.Module):
         }
 
     def forward(self, input_embeds, attention_mask, labels):
-        """THE single training forward. Returns loss and supervised-token logits."""
+        """CE-only forward. The three-branch trainer computes its objectives separately."""
         out = self.base_model.model(
             inputs_embeds=input_embeds,
             attention_mask=attention_mask,
@@ -285,37 +280,3 @@ class ReceiverWithLatent(nn.Module):
             "mean": float(tf.mean()), "std": float(tf.std()),
             "norm_f": float(tf.norm()),
         }
-
-
-def load_frozen_receiver(tok, adapter: Optional[Step1Adapter] = None, device: str = "cuda",
-                         model_profile: str = DEFAULT_MODEL_PROFILE,
-                         attn_implementation: str = "eager",
-                         offload_input_embeddings: bool = False):
-    """Load the locked base model, resize for <bop>/<eop>, wrap, freeze, assert."""
-    from transformers import AutoModelForCausalLM
-
-    profile = get_model_profile(model_profile)
-
-    base = AutoModelForCausalLM.from_pretrained(
-        profile["model_id"], revision=profile["model_revision"], torch_dtype=torch.bfloat16,
-        attn_implementation=attn_implementation,
-    ).to(device)
-    if base.config.hidden_size != profile["hidden_size"]:
-        raise AssertionError(
-            f"base hidden size {base.config.hidden_size} != profile {profile['hidden_size']}"
-        )
-    if adapter is None:
-        adapter = Step1Adapter(
-            hidden_size=profile["hidden_size"], num_heads=profile["adapter_num_heads"]
-        ).to(device)
-    if adapter.hidden_size != profile["hidden_size"]:
-        raise AssertionError(
-            f"adapter hidden size {adapter.hidden_size} != profile {profile['hidden_size']}"
-        )
-    receiver = ReceiverWithLatent(base, tok, adapter, device=device)
-    if offload_input_embeddings:
-        if base.config.tie_word_embeddings:
-            raise ValueError("cannot offload tied input embeddings independently")
-        base.get_input_embeddings().to("cpu")
-    freeze_report = receiver.freeze_base_and_assert(profile["expected_param_count"])
-    return receiver, freeze_report

@@ -80,6 +80,42 @@ uv run torch-gpu-smi 2>/dev/null || uv run python -c "import torch; x=torch.rand
 
 ## 故障排查
 
+### GB10 ARM 诊断环境（2026-10-23，与 A100 锁定环境不同）
+
+本机已有 GPU 检查记录见 `data/gb10_env_probe/cuda_smoke_result.json`。
+GB10 使用现有 `.venv` 中的 `torch==2.9.1+cu128`，不是上文 x86/A100
+使用的 torch 2.4.1。不能把本机诊断宣称为锁定环境的正式复现，也不要直接
+`uv sync` 覆盖此环境；原 `pyproject.toml` / `uv.lock` 未为此改写。
+本机执行命令使用 `uv run --no-sync python ...`，仍由 uv 管理的 Python 3.10 运行。
+
+首次准备时 `vendor/` 不存在，普通 `uv run` 解析本地依赖失败。恢复
+TextWorld 1.6.1 源码后发现其 Inform7 6M62 仅提供 x86 编译器，不提供
+`aarch64` 包。本机 vendor 的 `setup.sh` 仅对 ARM 跳过编译器/解释器二进制
+解包，保留公共资源并原生构建 Glulx；只用于官方预生成 `.tw-pddl` 的 PDDL
+环境，不支持 Inform7 游戏编译。此 patch 位于被忽略的 `vendor/` 中。
+不要通过装载 x86 二进制假称 ARM 编译支持。
+
+补装依赖时保留现有 torch/CUDA 包。torchvision 使用 PyTorch cu128 索引的
+0.24.1 ARM wheel（`uv pip install --no-deps torchvision==0.24.1 --index-url
+https://download.pytorch.org/whl/cu128`）；模型侧保持 transformers 4.46.3、
+tokenizers 0.20.3、numpy 1.24.4，环境侧保持 alfworld 0.3.5、TextWorld 1.6.1。
+OpenCV 使用 4.11.0.86，避免新版本强制升级 NumPy。
+完整已安装版本另存各次运行的 `requirements.installed.txt`；该清单是环境
+记录，不是 ARM 平台已经验证的完整锁文件。
+
+本次 `uv pip check` 还发现现有 `nvidia-cusparselt-cu12==0.7.1` 包的
+平台标记与 ARM 不符；为避免训练过程中更换 CUDA 库，未覆盖该既有包。
+已补齐缺少的 prompt-toolkit 3.0.52。普通 CUDA 矩阵乘法及先前的
+bf16/SDPA/AdamW 检查通过，但这些不能证明稀疏 CUDA 功能或整个环境合格。
+torch 还会提示设备 capability 12.1 超出其声明的 12.0 上限；这些警告
+需保留，正式运行前应单独修复和核验平台环境。
+
+ALFWorld 数据来自官方 release 0.2.2 的 `json_2.1.1_json.zip` 与
+`json_2.1.1_tw-pddl.zip`，存放于 `data/step1_05b_20261023/alfworld/`。
+仅枚举 reserved split 不等于运行其任务；本次不运行 `valid_unseen`。
+
+### 常见问题
+
 - **`libcudnn.so.9` / `libnccl.so.2` 导入错误**：`site-packages/nvidia/` 是所有 `nvidia-*` 包共享的命名空间，**切勿混装不同 CUDA 大版本的 nvidia 包**（如 cu13），卸载时会连带删除同名文件。修复：`uv sync --frozen --reinstall-package nvidia-cudnn-cu12 --reinstall-package nvidia-nccl-cu12`
 - **textworld 构建失败**：确认 gcc/make 已装；确认 `vendor/textworld-1.6.1/textworld/thirdparty/I7_6M62_Linux_all.tar.gz` 存在，且 `thirdparty/` 下**没有**残缺的 `inform7-6M62/` 存根目录（PyPI sdist 自带残缺存根，会骗过 setup.sh 的已安装检查——按上文重建步骤操作即可避免）
 - **环境彻底损坏**：直接 `rm -rf .venv && uv sync --frozen`，几分钟内按锁重建（uv 缓存加速）

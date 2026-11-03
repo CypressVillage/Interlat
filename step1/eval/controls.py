@@ -1,4 +1,4 @@
-"""Sample-specific control constructions for Step 1A (protocol §7).
+"""Sample-specific control constructions for the current paired evaluation.
 
 All controls share delimiter embeddings, position ordering, attention mask,
 prefix length and cast (receiver embedding dtype/device) with the Matched group.
@@ -107,11 +107,6 @@ def make_mismatched_message(adapter, H_donor: torch.Tensor, L_i: int,
     return Z, info
 
 
-def make_zero_message(L_i: int, hidden_size: int, emb_dtype: torch.dtype,
-                      device: torch.device) -> torch.Tensor:
-    return torch.zeros(L_i, hidden_size, dtype=emb_dtype, device=device)
-
-
 def make_random_message(L_i: int, hidden_size: int, draw: int, episode_id: str, norm_target: float,
                         emb_dtype: torch.dtype, device: torch.device) -> Tuple[torch.Tensor, Dict]:
     g = torch.Generator()
@@ -126,17 +121,3 @@ def make_random_message(L_i: int, hidden_size: int, draw: int, episode_id: str, 
         "scale_factor": scale,
     }
     return Z, info
-
-
-@torch.no_grad()
-def matched_norm_target(adapter, H_i: torch.Tensor, device: torch.device) -> float:
-    Zi = adapter.process_hidden_states(H_i.to(device, dtype=torch.float32)).float()
-    return float(Zi.norm())
-
-
-@torch.no_grad()
-def make_matched_message(adapter, H_i: torch.Tensor, emb_dtype: torch.dtype,
-                         device: torch.device) -> Tuple[torch.Tensor, Dict]:
-    Zi = adapter.process_hidden_states(H_i.to(device, dtype=torch.float32))
-    return Zi.to(emb_dtype), {"L_target": int(H_i.shape[0])}
-
