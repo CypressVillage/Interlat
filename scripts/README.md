@@ -12,10 +12,10 @@ ALFWorld 评估 → 完整性审计和汇总。
   - `adapter.py`：适配器算子、冻结边界、embedding 注入与 CE 前向；包含原样保留的上游 AdaptiveProjection，不再依赖旧训练目录。
   - `runtime.py`：Base 加载、数据/latent 读取、监督位置对齐与 NLL。
 - `data_collection/`
-   - `prepare_data.py`：成功 ETO 子集转换、原 seed-42 的 5% selection 划分。
-  - `prepare_eval.py`：准备 140 个 valid_seen 初始状态，不读取专家动作作为答案。
-  - `collect_latents.py`：唯一的采集入口；沿用采样配置、任务 RNG、bf16 缓存与 EOS 对齐。
-  - `audit_eto_trajectories.py`：公开轨迹在当前环境的重放审计；规范化观察比较，不修改动作、不筛除失败轨迹。
+  - `gen_training_data.py`：成功 ETO 子集转换、原 seed-42 的 5% selection 划分。
+  - `gen_eval_tasks.py`：准备 140 个 valid_seen 初始状态，不读取专家动作作为答案。
+  - `gen_sender_messages.py`：唯一的采集入口；沿用采样配置、任务 RNG、bf16 缓存与 EOS 对齐。
+  - `replay_eto_trajectories.py`：公开轨迹在当前环境的重放审计；规范化观察比较，不修改动作、不筛除失败轨迹。
 - `train/train_step1.py`：唯一的三分支训练入口；内含 text-prefix/latent-suffix 混合、CE、负 JS、KL 和 cosine 对齐；默认 3 epochs / 24 小时，选择集 NLL 选 checkpoint。
 - `eval/`
   - `eval_adapter.py`：唯一的评估入口；initial/best/last、原有七组对照与 20-action 上限。
@@ -34,16 +34,16 @@ export RUN="$PWD/data/runs/frozen_receiver_v1"
 
 1. 重放公开轨迹并保留完整审计，再导出成功子集、转换数据与固定划分
 ```
-uv run --no-sync python -m scripts.data_collection.audit_eto_trajectories
+uv run --no-sync python -m scripts.data_collection.replay_eto_trajectories
 uv run --no-sync python -m scripts.data_collection.filter_successful_eto
-uv run --no-sync python -m scripts.data_collection.prepare_data
-uv run --no-sync python -m scripts.data_collection.prepare_eval
+uv run --no-sync python -m scripts.data_collection.gen_training_data
+uv run --no-sync python -m scripts.data_collection.gen_eval_tasks
 ```
 
 2. 分别采集训练/selection 与 valid_seen 缓存
 ```
-uv run --no-sync python -m scripts.data_collection.collect_latents
-uv run --no-sync python -m scripts.data_collection.collect_latents --split eval
+uv run --no-sync python -m scripts.data_collection.gen_sender_messages
+uv run --no-sync python -m scripts.data_collection.gen_sender_messages --split eval
 ```
 
 3. 训练与独立任务评估
@@ -65,7 +65,7 @@ uv run --no-sync python -m scripts.eval.summarize_results
 
 输出为 `replay.jsonl`（每条轨迹的成功状态、初始观察匹配、观察差异和异常）、
 `summary.json`（汇总）及 `config.json`（来源、代码哈希、依赖版本）。
-`prepare_data.py` 默认读取成功子集，并按 ID 从 `$RUN/replay/replay.jsonl` 附加审计信息、校验成功状态。
+`gen_training_data.py` 默认读取成功子集，并按 ID 从 `$RUN/replay/replay.jsonl` 附加审计信息、校验成功状态。
 审计不证明该公开数据就是论文最终训练数据，也不是模型成功率评估。
 
 首次检查可加 `--limit 2`；这只重放前两条，不能直接供全量数据转换使用。
@@ -87,7 +87,7 @@ uv run --no-sync python -m scripts.data_collection.filter_successful_eto
 数据源路径统一配置在 `common.py`：`ETO_DATA` 为原始数据，`SUCCESSFUL_ETO_DIR` /
 `SUCCESSFUL_ETO_DATA` 为成功子集目录/文件，`TRAIN_SOURCE` 指定预处理输入（默认成功子集）。
 审计路径使用 `ETO_AUDIT_DIR` / `ETO_AUDIT_DATA`，评估输入使用 `VALID_SEEN_DATA`。
-导出不会自动重新划分；随后运行 `prepare_data`，它要求源数据全部为审计成功记录。
+导出不会自动重新划分；随后运行 `gen_training_data`，它要求源数据全部为审计成功记录。
 
 ## 续训
 
