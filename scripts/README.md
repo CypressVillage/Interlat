@@ -12,7 +12,7 @@ ALFWorld 评估 → 完整性审计和汇总。
   - `adapter.py`：适配器算子、冻结边界、embedding 注入与 CE 前向；包含原样保留的上游 AdaptiveProjection，不再依赖旧训练目录。
   - `runtime.py`：Base 加载、数据/latent 读取、监督位置对齐与 NLL。
 - `data_collection/`
-  - `prepare_data.py`：公开 ETO 轨迹转换、原 seed-42 的 5% selection 划分；不筛除失败轨迹。
+   - `prepare_data.py`：成功 ETO 子集转换、原 seed-42 的 5% selection 划分。
   - `prepare_eval.py`：准备 140 个 valid_seen 初始状态，不读取专家动作作为答案。
   - `collect_latents.py`：唯一的采集入口；沿用采样配置、任务 RNG、bf16 缓存与 EOS 对齐。
   - `audit_eto_trajectories.py`：公开轨迹在当前环境的重放审计；规范化观察比较，不修改动作、不筛除失败轨迹。
@@ -32,9 +32,10 @@ export PREPARED="$PWD/data/prepared"
 export RUN="$PWD/data/runs/frozen_receiver_v1"
 ```
 
-1. 重放公开轨迹，保留失败记录；再转换数据与固定划分
+1. 重放公开轨迹并保留完整审计，再导出成功子集、转换数据与固定划分
 ```
 uv run --no-sync python -m scripts.data_collection.audit_eto_trajectories
+uv run --no-sync python -m scripts.data_collection.filter_successful_eto
 uv run --no-sync python -m scripts.data_collection.prepare_data
 uv run --no-sync python -m scripts.data_collection.prepare_eval
 ```
@@ -64,11 +65,29 @@ uv run --no-sync python -m scripts.eval.summarize_results
 
 输出为 `replay.jsonl`（每条轨迹的成功状态、初始观察匹配、观察差异和异常）、
 `summary.json`（汇总）及 `config.json`（来源、代码哈希、依赖版本）。
-`prepare_data.py` 默认读取 `$RUN/replay/replay.jsonl`；这一步只按 ID 附加审计信息。
+`prepare_data.py` 默认读取成功子集，并按 ID 从 `$RUN/replay/replay.jsonl` 附加审计信息、校验成功状态。
 审计不证明该公开数据就是论文最终训练数据，也不是模型成功率评估。
 
 首次检查可加 `--limit 2`；这只重放前两条，不能直接供全量数据转换使用。
 全量运行省略 `--limit`。已有结果不会被覆盖。
+
+### 独立导出成功轨迹
+
+如需成功示范子集，在全量审计后运行：
+
+```bash
+uv run --no-sync python -m scripts.data_collection.filter_successful_eto
+```
+
+脚本核验源数据和审计哈希、完整性及 ID 一一对应，仅保留 `success=true`、
+`reason=won` 且无执行/关闭错误的原始记录，不要求中间观察完全匹配。
+默认输出 `$RUN/successful_eto/alfworld_sft_successful.json` 和来源/筛选 manifest；
+保留原始记录内容及顺序，不覆盖已有目录，不修改原数据或审计。
+这只是当前环境回放成功子集，不是模型评估结果，也不代表论文最终训练数据。
+数据源路径统一配置在 `common.py`：`ETO_DATA` 为原始数据，`SUCCESSFUL_ETO_DIR` /
+`SUCCESSFUL_ETO_DATA` 为成功子集目录/文件，`TRAIN_SOURCE` 指定预处理输入（默认成功子集）。
+审计路径使用 `ETO_AUDIT_DIR` / `ETO_AUDIT_DATA`，评估输入使用 `VALID_SEEN_DATA`。
+导出不会自动重新划分；随后运行 `prepare_data`，它要求源数据全部为审计成功记录。
 
 ## 续训
 

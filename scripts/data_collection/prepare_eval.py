@@ -3,12 +3,12 @@ import argparse
 import json
 from pathlib import Path
 from scripts.alfworld_utils import make_plain_tw_env, strip_intro_text, list_games
-from scripts.common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, DEFAULT_RUN_DIR, sha256_file, write_json
+from scripts.common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, VALID_SEEN_DATA, sha256_file, write_json
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--out', default=f'{DEFAULT_RUN_DIR}/valid_seen.jsonl', help='new evaluation input file')
+    ap.add_argument('--out', default=VALID_SEEN_DATA, help='new evaluation input file')
     a = ap.parse_args()
     out = Path(a.out)
     assert not out.exists()

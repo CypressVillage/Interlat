@@ -14,7 +14,7 @@ from scripts.alfworld_utils import (
     process_ob,
     strip_intro_text,
 )
-from scripts.common import ETO_DATA, ALFWORLD_GAMES, DEFAULT_RUN_DIR, sha256_file, write_json
+from scripts.common import ETO_DATA, ALFWORLD_GAMES, ETO_AUDIT_DIR, sha256_file, write_json
 
 
 def normalize(text):
@@ -99,7 +99,7 @@ def replay(row, games):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/replay', help='new directory; existing outputs are never overwritten')
+    parser.add_argument('--out-dir', default=ETO_AUDIT_DIR, help='new directory; existing outputs are never overwritten')
     parser.add_argument('--limit', type=int, default=0, help='audit only the first N records; 0 means all')
     args = parser.parse_args()
     if args.limit < 0:

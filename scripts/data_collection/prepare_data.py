@@ -1,4 +1,4 @@
-"""Prepare unfiltered published ETO records with upstream conversation merging.
+"""Prepare the configured successful ETO source with upstream conversation merging.
 
 Paper's 5% selection ratio, upstream seed-42 shuffle. No evaluation tasks run.
 """
@@ -6,8 +6,8 @@ import argparse
 import json
 import random
 from pathlib import Path
-from scripts.common import (DATA_SPLIT_SEED, ETO_DATA, ALFWORLD_GAMES,
-    PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json)
+from scripts.common import (DATA_SPLIT_SEED, TRAIN_SOURCE, ALFWORLD_GAMES,
+    PREPARED_DIR, ETO_AUDIT_DATA, sha256_file, write_json)
 
 
 def convert(row, games=ALFWORLD_GAMES):
@@ -55,16 +55,28 @@ def convert(row, games=ALFWORLD_GAMES):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--audit', default=f'{DEFAULT_RUN_DIR}/replay/replay.jsonl', help='complete replay audit')
+    ap.add_argument('--audit', default=ETO_AUDIT_DATA, help='complete replay audit')
     ap.add_argument('--out-dir', default=PREPARED_DIR, help='new prepared-data directory')
     arg = ap.parse_args()
 
     out = Path(arg.out_dir)
-    with open(ETO_DATA) as stream:
+    with open(TRAIN_SOURCE) as stream:
         raw = json.load(stream)
-    audit = { r['id']: r for r in map(json.loads,Path(arg.audit).read_text().splitlines()) }
+    records = list(map(json.loads, Path(arg.audit).read_text().splitlines()))
+    audit = {r['id']: r for r in records}
+    if len(audit) != len(records):
+        raise ValueError('duplicate audit trajectory IDs')
+    ids = [r['id'] for r in raw]
+    if not ids or len(set(ids)) != len(ids):
+        raise ValueError('training source must contain nonempty, unique trajectory IDs')
+    if not set(ids).issubset(audit):
+        raise ValueError('training source contains IDs missing from replay audit')
+    for trajectory_id in ids:
+        record = audit[trajectory_id]
+        if (record.get('success') is not True or record.get('reason') != 'won'
+                or 'error' in record or 'close_error' in record):
+            raise ValueError(f'{trajectory_id}: training source contains an unsuccessful trajectory')
     rows = [ convert(r, ALFWORLD_GAMES) for r in raw ]
-    assert len({r['id'] for r in rows}) == len(rows) == len(audit)
     out.mkdir(parents = True, exist_ok = False)
 
     random.Random(DATA_SPLIT_SEED).shuffle(rows)
@@ -81,20 +93,22 @@ def main():
         str(out/'manifest.json'),
         {
             'games': str(Path(ALFWORLD_GAMES).resolve()),
-            'source_sha256': sha256_file(ETO_DATA),
+            'source': str(Path(TRAIN_SOURCE).resolve()),
+            'source_sha256': sha256_file(TRAIN_SOURCE),
             'audit_sha256':sha256_file(arg.audit),
             'counts':{ k:len(v) for k, v in splits.items() },
             'sha256':hashes,
             'shuffle_seed':DATA_SPLIT_SEED,
             'selection_fraction':.05,
             'rounding':'floor',
-            'filtering':'none',
+            'filtering':'successful replay only; no additional filtering during preparation',
             'action_rewriting':'none',
             'scope':'user-authorized paper-alignment variant, not existing Step1 split',
             'limitations': [
                 'Published ETO source is verified; exact final Interlat training artifact remains unverified.',
                 'Selection ratio from paper; shuffle seed from upstream; exact paper split unavailable.',
-                'Preserves known unsuccessful replay records and original supervision text.'
+                'Uses current-environment successful replay records and preserves original supervision text.',
+                'Task success does not imply all intermediate observations match.'
             ]
         })
     print({k:len(v) for k,v in splits.items()})
