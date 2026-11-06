@@ -11,7 +11,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 from scripts.common import (TRAIN_SEED, GLOBAL_BATCH, PREPARED_DIR, DEFAULT_RUN_DIR,
-    RECEIVER_MODEL, RECEIVER_REVISION, sha256_file, write_json)
+    RECEIVER_MODEL, RECEIVER_REVISION)
+from scripts.utils.hashing import sha256_file, write_json
 from scripts.model.runtime import (load_receiver, load_rows, adapted, latent,
     text_message, supervised_hidden, nll, parameter_fingerprint)
 from scripts.train.diagnostics import TrainingProbes
@@ -265,7 +266,7 @@ def main():
         'source_hashes': {p: sha256_file(p) for p in [a.fit,a.selection,
             str(Path(a.latents)/'config.json'),
             'scripts/train/train_step1.py','scripts/train/diagnostics.py','scripts/model/runtime.py',
-            'scripts/common.py','scripts/model/serialization.py','scripts/eval/controls.py',
+            'scripts/common.py','scripts/model/receiver.py','scripts/eval/controls.py',
             'scripts/model/adapter.py']},
         'freeze': freeze, 'delimiter_init': receiver.delimiter_init_report,
         'resume': None if resume is None else {'checkpoint_sha256': sha256_file(a.resume_epoch),

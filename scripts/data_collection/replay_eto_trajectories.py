@@ -14,7 +14,8 @@ from scripts.alfworld_utils import (
     process_ob,
     strip_intro_text,
 )
-from scripts.common import ETO_DATA, ALFWORLD_GAMES, ETO_AUDIT_DIR, sha256_file, write_json
+from scripts.common import ETO_DATA, ALFWORLD_GAMES, ETO_AUDIT_DIR
+from scripts.utils.hashing import sha256_file, write_json
 
 
 def normalize(text):

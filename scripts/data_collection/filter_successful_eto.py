@@ -7,7 +7,8 @@ import argparse
 import json
 from pathlib import Path
 
-from scripts.common import ETO_DATA, ETO_AUDIT_DIR, SUCCESSFUL_ETO_DIR, SUCCESSFUL_ETO_DATA, sha256_file, write_json
+from scripts.common import ETO_DATA, ETO_AUDIT_DIR, SUCCESSFUL_ETO_DIR, SUCCESSFUL_ETO_DATA
+from scripts.utils.hashing import sha256_file, write_json
 
 
 def select_successful(rows, audit):

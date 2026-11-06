@@ -3,7 +3,8 @@ import argparse
 import json
 from pathlib import Path
 from scripts.alfworld_utils import make_plain_tw_env, strip_intro_text, list_games
-from scripts.common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, VALID_SEEN_DATA, sha256_file, write_json
+from scripts.common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, VALID_SEEN_DATA
+from scripts.utils.hashing import sha256_file, write_json
 
 
 def main():

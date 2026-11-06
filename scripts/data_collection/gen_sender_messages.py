@@ -10,7 +10,8 @@ import time
 from pathlib import Path
 
 from scripts.common import (SENDER_MODEL as MODEL, SENDER_REVISION as REVISION,
-    SENDER_MAX_NEW_TOKENS, PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json)
+    SENDER_MAX_NEW_TOKENS, PREPARED_DIR, DEFAULT_RUN_DIR)
+from scripts.utils.hashing import sha256_file, write_json
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer

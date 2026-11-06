@@ -1,41 +1,15 @@
 """Frozen Base runtime for the independently authorized paper-alignment variant.
 
-Rendering lives in serialization; the Receiver is always the locked 7B Base.
+Rendering lives in receiver; the Receiver is always the locked 7B Base.
 """
 import hashlib
 import json
 from pathlib import Path
 
-from scripts.common import (RECEIVER_MODEL, RECEIVER_REVISION,
-    HIDDEN_SIZE, ADAPTER_HEADS, ADAPTER_PARAM_COUNT)
+from scripts.common import HIDDEN_SIZE
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from scripts.model.adapter import ReceiverWithLatent, Step1Adapter
-from scripts.model.serialization import BOP, EOP, render
-
-
-def tokenizer():
-    tok = AutoTokenizer.from_pretrained(RECEIVER_MODEL, revision = RECEIVER_REVISION)
-    tok.add_special_tokens({'additional_special_tokens': [BOP, EOP]})
-    tok.pad_token = tok.eos_token
-    return tok
-
-
-def load_receiver(checkpointing=False):
-    tok = tokenizer()
-    base = AutoModelForCausalLM.from_pretrained(
-        RECEIVER_MODEL,
-        revision = RECEIVER_REVISION,
-        torch_dtype = torch.bfloat16,
-        attn_implementation = 'sdpa'
-    ).cuda()
-    receiver = ReceiverWithLatent(base, tok, Step1Adapter(HIDDEN_SIZE, ADAPTER_HEADS).cuda())
-    report = receiver.freeze_base_and_assert(ADAPTER_PARAM_COUNT)
-    if checkpointing:
-        base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant': False})
-    receiver.eval()
-    return receiver, tok, report
+from scripts.model.receiver import render
 
 
 def load_rows(path, tok, latent_dir=None, limit=0):

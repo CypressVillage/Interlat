@@ -7,7 +7,8 @@ from pathlib import Path
 import numpy as np
 import torch
 from scripts.common import (HIDDEN_SIZE, N_VALID_SEEN, RECEIVER_MAX_NEW_TOKENS,
-    EVAL_MAX_STEPS, PREPARED_DIR, DEFAULT_RUN_DIR, RECEIVER_MODEL, RECEIVER_REVISION, sha256_file, write_json)
+    EVAL_MAX_STEPS, PREPARED_DIR, DEFAULT_RUN_DIR, RECEIVER_MODEL, RECEIVER_REVISION)
+from scripts.utils.hashing import sha256_file, write_json
 from scripts.eval.controls import make_mismatched_message, make_random_message, build_mismatched_mapping
 from scripts.alfworld_utils import make_plain_tw_env, parse_action, process_ob, strip_intro_text
 from scripts.model.runtime import (load_receiver, load_rows, adapted,

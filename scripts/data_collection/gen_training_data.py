@@ -7,7 +7,8 @@ import json
 import random
 from pathlib import Path
 from scripts.common import (DATA_SPLIT_SEED, TRAIN_SOURCE, ALFWORLD_GAMES,
-    PREPARED_DIR, ETO_AUDIT_DATA, sha256_file, write_json)
+    PREPARED_DIR, ETO_AUDIT_DATA)
+from scripts.utils.hashing import sha256_file, write_json
 
 
 def convert(row, games=ALFWORLD_GAMES):

@@ -8,7 +8,7 @@ ALFWorld 评估 → 完整性审计和汇总。
 - `common.py`：模型 revision、维度、固定种子与预算常量，文件哈希/JSON 工具数据路径与默认产物目录
 - `alfworld_utils.py`：canonical 游戏枚举、环境创建、观察清理与原有动作解析规则。
 - `model/`
-  - `serialization.py`：唯一的 Receiver ChatML 渲染；消息注入在首个 user 结束符之前。
+  - `receiver.py`：Receiver ChatML 渲染、监督标签与潜在消息注入；消息注入在首个 user 结束符之前。
   - `adapter.py`：适配器算子、冻结边界、embedding 注入与 CE 前向；包含原样保留的上游 AdaptiveProjection，不再依赖旧训练目录。
   - `runtime.py`：Base 加载、数据/latent 读取、监督位置对齐与 NLL。
 - `data_collection/`
