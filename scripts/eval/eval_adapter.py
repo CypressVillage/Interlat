@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import torch
 from scripts.common import (HIDDEN_SIZE, N_VALID_SEEN, RECEIVER_MAX_NEW_TOKENS,
-    EVAL_MAX_STEPS, PREPARED_DIR, DEFAULT_RUN_DIR, sha256_file, write_json)
+    EVAL_MAX_STEPS, PREPARED_DIR, DEFAULT_RUN_DIR, RECEIVER_MODEL, RECEIVER_REVISION, sha256_file, write_json)
 from scripts.eval.controls import make_mismatched_message, make_random_message, build_mismatched_mapping
 from scripts.alfworld_utils import make_plain_tw_env, parse_action, process_ob, strip_intro_text
-from scripts.model.runtime import (BASE, BASE_REVISION, load_receiver, load_rows, adapted,
+from scripts.model.runtime import (load_receiver, load_rows, adapted,
     text_message, latent, render, build, nll)
 
 GROUPS = ['matched', 'no_comm', 'mismatched', 'mismatched_control', 'zero', 'random', 'text']
@@ -160,7 +160,7 @@ def main():
     for stage in ('initial','best','last'):
         path = Path(a.train_dir)/(stage+'.pt')
         ckpt = torch.load(path,map_location='cpu',weights_only=False)
-        assert ckpt['base']==BASE and ckpt['revision']==BASE_REVISION
+        assert ckpt['base']==RECEIVER_MODEL and ckpt['revision']==RECEIVER_REVISION
         checkpoints[stage] = {'step':ckpt['step'],'sha256':sha256_file(str(path))}
         receiver.adapter.load_state_dict(ckpt['adapter']);receiver.eval()
         groups = GROUPS if stage=='best' else ['matched']

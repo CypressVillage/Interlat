@@ -16,7 +16,7 @@ ALFWorld 评估 → 完整性审计和汇总。
   - `gen_eval_tasks.py`：准备 140 个 valid_seen 初始状态，不读取专家动作作为答案。
   - `gen_sender_messages.py`：唯一的采集入口；沿用采样配置、任务 RNG、bf16 缓存与 EOS 对齐。
   - `replay_eto_trajectories.py`：公开轨迹在当前环境的重放审计；规范化观察比较，不修改动作、不筛除失败轨迹。
-- `train/train_step1.py`：唯一的三分支训练入口；内含 text-prefix/latent-suffix 混合、CE、负 JS、KL 和 cosine 对齐；默认 3 epochs / 24 小时，选择集 NLL 选 checkpoint。
+- `train/train_step1.py`：唯一的三分支训练入口；内含 latent-prefix/text-suffix 混合、CE、负 JS、KL 和 cosine 对齐；默认 3 epochs、无时间上限，选择集 NLL 选 checkpoint。
 - `eval/`
   - `eval_adapter.py`：唯一的评估入口；initial/best/last、原有七组对照与 20-action 上限。
   - `summarize_results.py`：核验输入、缓存、checkpoint、续训日志和评估结果，再生成报告。
@@ -90,6 +90,32 @@ uv run --no-sync python -m scripts.data_collection.filter_successful_eto
 导出不会自动重新划分；随后运行 `gen_training_data`，它要求源数据全部为审计成功记录。
 
 ## 续训
+
+短程稳定性检查可用 `--stop-after-updates 5`：只停止执行，不缩短由全量 fit 和
+`--epochs` 决定的学习率日程。不要用 `--smoke` 代替真实 batch/warmup 检查。
+`--diagnostic-probes <JSON>` 接受形如
+`[{"id":"alfworld_287","latent_fraction":0.1},{"id":"alfworld_1470","latent_fraction":0.5}]`
+的固定 fit 样本配置，逐步记录纯 latent NLL、混合 NLL、消息变化及末层投影变化，
+并保存每步 checkpoint；探针不用于选择 checkpoint，测量恢复训练模式和 RNG 状态。
+不足一个 epoch 的短程 checkpoint 不适用于当前仅支持完整 epoch 边界的续训入口。
+
+2026-11-05 起，默认取消训练时间上限（`--max-hours 0`）；仍可显式设置正数作为可选上限。
+默认 epoch 数仍为 3，这是本地实验预算选择，不是由论文推导出的数值；作者公开 `train.sh` 默认为 10。
+训练错配分支仅替换 latent，文本计划保持当前任务不变。donor 的原始 latent 在进入 adapter 前
+按当前任务通信长度截断，或重复后截断并加标准差 0.01 的高斯噪声；等长不加噪声。
+混合方式改为作者公开代码的 latent 前缀/当前任务文本后缀，均匀采样 latent 比例
+`r ∈ {0.1,0.2,...,0.9}`，切分点为 `round(r*L)`；匹配与错配使用同一比例。
+比例不采样 0 或 1，但极短序列经取整仍可能没有某一通道的位置。
+匹配和错配分支仍均保留梯度。评估对照的构造未随本次修改。
+
+2026-11-05 起，辅助损失权重改用作者公开代码的范围与按损失调整方式：
+`lambda_sep = 0.01 + 0.49 * clip(max(0, 0.69 - JS) / 0.69, 0, 1)`，
+`lambda_align = 0.01 + 0.04 * clip((KL + cosine_distance) / 4, 0, 1)`。
+按每条样本完整监督位置的损失计算系数，再按监督 token 数累积梯度；保留系数的梯度。
+本次只对齐权重机制，仍使用负标准 JS、KL(matched||text) 和 logits cosine，
+不采用作者不同的 divergence、KL 方向或内部 0.7/0.3 系数，不能称为完整复现作者损失。
+日志保存逐样本系数、token 加权平均系数和实际总损失。旧线性权重 smoke 结果仅对应旧代码，
+不改写既有记录或使用旧 checkpoint 续训新目标。
 
 使用相同数据、配置与源码，从完整 epoch 边界继续；输出目录必须是新目录。
 

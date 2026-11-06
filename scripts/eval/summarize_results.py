@@ -103,6 +103,8 @@ def main():
     planned=math.ceil(cfg['fit_count']/cfg['global_batch'])*cfg['epochs']
     assert cfg['max_updates']==planned and training['updates']<=planned
     if training['stop_reason']=='epoch_budget':assert training['updates']==planned
+    elif training['stop_reason']=='update_limit':
+        assert cfg['stop_after_updates']>0 and training['updates']==cfg['stop_after_updates']
     else:assert training['stop_reason']=='wall_budget'
     for name,digest in training['checkpoint_sha256'].items():
         assert sha256_file(str(train/name))==digest,name
@@ -132,7 +134,7 @@ def main():
         assert r['step']==i+1 and 1<len(r['ids'])<=cfg['global_batch']
         assert set(r['ids'])<=fit_ids and set(r['donors'])==set(r['ids'])
         assert all(x!=y for x,y in zip(r['ids'],r['donors']))
-        assert all(x in {n/10 for n in range(11)} for x in r['fractions'])
+        assert all(x in {n/10 for n in range(1,10)} for x in r['fractions'])
         assert np.isfinite(r['losses']).all() and math.isfinite(r['grad_norm_before_clip'])
         assert -math.log(2)-1e-5<=r['losses'][1]<=1e-5
         assert r['losses'][2]>=-1e-5

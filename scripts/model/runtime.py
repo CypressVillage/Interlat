@@ -6,7 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from scripts.common import (RECEIVER_MODEL as BASE, RECEIVER_REVISION as BASE_REVISION,
+from scripts.common import (RECEIVER_MODEL, RECEIVER_REVISION,
     HIDDEN_SIZE, ADAPTER_HEADS, ADAPTER_PARAM_COUNT)
 
 import torch
@@ -16,7 +16,7 @@ from scripts.model.serialization import BOP, EOP, render
 
 
 def tokenizer():
-    tok = AutoTokenizer.from_pretrained(BASE, revision=BASE_REVISION)
+    tok = AutoTokenizer.from_pretrained(RECEIVER_MODEL, revision = RECEIVER_REVISION)
     tok.add_special_tokens({'additional_special_tokens': [BOP, EOP]})
     tok.pad_token = tok.eos_token
     return tok
@@ -24,8 +24,12 @@ def tokenizer():
 
 def load_receiver(checkpointing=False):
     tok = tokenizer()
-    base = AutoModelForCausalLM.from_pretrained(BASE, revision=BASE_REVISION,
-            torch_dtype=torch.bfloat16, attn_implementation='sdpa').cuda()
+    base = AutoModelForCausalLM.from_pretrained(
+        RECEIVER_MODEL,
+        revision = RECEIVER_REVISION,
+        torch_dtype = torch.bfloat16,
+        attn_implementation = 'sdpa'
+    ).cuda()
     receiver = ReceiverWithLatent(base, tok, Step1Adapter(HIDDEN_SIZE, ADAPTER_HEADS).cuda())
     report = receiver.freeze_base_and_assert(ADAPTER_PARAM_COUNT)
     if checkpointing:
