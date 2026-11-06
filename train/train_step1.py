@@ -13,7 +13,8 @@ from torch.utils.checkpoint import checkpoint
 from common import (TRAIN_SEED, GLOBAL_BATCH, PREPARED_DIR, DEFAULT_RUN_DIR,
     RECEIVER_MODEL, RECEIVER_REVISION)
 from utils.hashing import sha256_file, write_json
-from model.runtime import (load_receiver, load_rows, adapted, latent,
+from model.receiver import load_receiver
+from model.runtime import (load_rows, adapted, latent,
     text_message, supervised_hidden, nll, parameter_fingerprint)
 from train.diagnostics import TrainingProbes
 

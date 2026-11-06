@@ -11,7 +11,8 @@ from common import (HIDDEN_SIZE, N_VALID_SEEN, RECEIVER_MAX_NEW_TOKENS,
 from utils.hashing import sha256_file, write_json
 from eval.controls import make_mismatched_message, make_random_message, build_mismatched_mapping
 from alfworld_utils import make_plain_tw_env, parse_action, process_ob, strip_intro_text
-from model.runtime import (load_receiver, load_rows, adapted,
+from model.receiver import load_receiver
+from model.runtime import (load_rows, adapted,
     text_message, latent, render, build, nll)
 
 GROUPS = ['matched', 'no_comm', 'mismatched', 'mismatched_control', 'zero', 'random', 'text']
