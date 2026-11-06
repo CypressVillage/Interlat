@@ -69,10 +69,16 @@ Homepage = "https://github.com/XiaoDu-flying/Interlat"
 "Bug Reports" = "https://github.com/XiaoDu-flying/Interlat/issues"
 Source = "https://github.com/XiaoDu-flying/Interlat"
 
+[tool.setuptools]
+py-modules = ["common", "alfworld_utils"]
+
 [tool.setuptools.packages.find]
 include = [
-    "scripts",
-    "scripts.*",
+    "data_collection", "data_collection.*",
+    "model", "model.*",
+    "train", "train.*",
+    "eval", "eval.*",
+    "utils", "utils.*",
 ]
 
 [tool.setuptools.package-data]
