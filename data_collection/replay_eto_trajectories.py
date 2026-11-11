@@ -14,7 +14,7 @@ from alfworld_utils import (
     process_ob,
     strip_intro_text,
 )
-from common import ETO_DATA, ALFWORLD_GAMES, ETO_AUDIT_DIR
+from configs.config import config_for_parser
 from utils.hashing import sha256_file, write_json
 
 
@@ -100,7 +100,10 @@ def replay(row, games):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out-dir', default=ETO_AUDIT_DIR, help='new directory; existing outputs are never overwritten')
+    experiment = config_for_parser(parser)
+    ETO_DATA = experiment['data']['source']['eto_path']
+    ALFWORLD_GAMES = experiment['data']['source']['alfworld_games']
+    parser.add_argument('--out-dir', default=experiment['data']['replay']['output_dir'], help='new directory; existing outputs are never overwritten')
     parser.add_argument('--limit', type=int, default=0, help='audit only the first N records; 0 means all')
     args = parser.parse_args()
     if args.limit < 0:
@@ -117,6 +120,7 @@ def main():
 
     os.makedirs(args.out_dir, exist_ok=False)
     config = {
+        'experiment': {'settings': experiment, 'arguments': vars(args)},
         'source': ETO_DATA,
         'source_sha256': sha256_file(ETO_DATA),
         'source_records': source_count,

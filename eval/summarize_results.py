@@ -9,8 +9,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from common import (RECEIVER_MODEL, ADAPTER_PARAM_COUNT, GLOBAL_BATCH,
-    TRAIN_SEED, N_VALID_SEEN, DEFAULT_RUN_DIR)
+from configs.config import config_for_parser, load_config
 from utils.hashing import sha256_file, write_json
 
 GROUPS = ('matched','no_comm','mismatched','mismatched_control','zero','random','text')
@@ -32,13 +31,14 @@ def wilson(successes,n,z=1.959963984540054):
     return [max(0.,middle-half),min(1.,middle+half)]
 
 
-def comparison(matched,control):
+def comparison(matched,control,config=None):
+    config = config if config is not None else load_config()['evaluation']
     mapping={r['id']:r for r in control}
     d=np.array([int(r['success'])-int(mapping[r['id']]['success']) for r in matched])
     wins=int((d==1).sum());losses=int((d==-1).sum());discordant=wins+losses
     p=1. if not discordant else min(1.,2*sum(math.comb(discordant,k) for k in range(min(wins,losses)+1))/2**discordant)
-    rng=np.random.default_rng(0)
-    boot=d[rng.integers(len(d),size=(10000,len(d)))].mean(1)
+    rng=np.random.default_rng(config['seed'])
+    boot=d[rng.integers(len(d),size=(config['bootstrap_samples'],len(d)))].mean(1)
     return {'delta':float(d.mean()),'matched_only':wins,'control_only':losses,
         'paired_bootstrap_95':np.quantile(boot,[.025,.975]).tolist(),
         'mcnemar_exact_p_unadjusted':p,'bootstrap_degenerate':bool(not discordant)}
@@ -50,13 +50,16 @@ def summarize(records):
     actions=sum(len(r['actions']) for r in records)
     return {'n':n,'successes':successes,'success_rate':successes/n,'success_wilson_95':wilson(successes,n),
         'parse_error_episodes':sum(r['reason']=='parse_error' for r in records),
+        'token_limit_episodes':sum(r['reason']=='max_tokens' for r in records),
         'errors':sum(r['reason']=='execution_error' for r in records),
         'mean_steps':sum(r['n_steps'] for r in records)/n,
         'generated_turns':turns,'actions':actions,
         'single_action_turns':sum(s.count('Action:')==1 for r in records for s in r['outputs']),
         'thought_action_turns':sum('Thought:' in s and s.count('Action:')==1 for r in records for s in r['outputs']),
         'admissible_actions':sum(sum(r['admissible']) for r in records),
-        'capped_turns':sum(sum(not h for h in r['hits_end']) for r in records),
+        'capped_turns':sum(r['stop_reasons'].count('max_tokens') if 'stop_reasons' in r
+                           else sum(not h for h in r['hits_end']) for r in records),
+        'action_line_stops':sum(r.get('stop_reasons',[]).count('action_line') for r in records),
         'wall_seconds_sum':sum(r['seconds'] for r in records)}
 
 
@@ -85,16 +88,24 @@ def training_records(directory, visited=None):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--root',default=DEFAULT_RUN_DIR,help='artifact root containing cache audits and valid_seen.jsonl')
+    experiment = config_for_parser(ap)
+    RECEIVER_MODEL = experiment['model']['receiver']['name_or_path']
+    TRAIN_SEED = experiment['training']['seed']
+    GLOBAL_BATCH = experiment['training']['global_batch']
+    N_VALID_SEEN = experiment['evaluation']['num_tasks']
+    hidden_size = experiment['model']['adapter']['hidden_size']
+    ADAPTER_PARAM_COUNT = 6 * hidden_size ** 2 + 12 * hidden_size + 2
+    ap.add_argument('--root',default=experiment['data']['paths']['run_dir'],help='artifact root containing cache audits and valid_seen.jsonl')
     ap.add_argument('--train-dir',help='default: <root>/train; may point to a continuation directory')
     ap.add_argument('--eval-dir',help='default: <root>/eval')
     a=ap.parse_args();root=Path(a.root)
-    train=Path(a.train_dir) if a.train_dir else root/'train'
-    evaluation=Path(a.eval_dir) if a.eval_dir else root/'eval'
+    train=Path(a.train_dir) if a.train_dir else (root/'train' if a.root != experiment['data']['paths']['run_dir'] else Path(experiment['training']['output_dir']))
+    evaluation=Path(a.eval_dir) if a.eval_dir else (root/'eval' if a.root != experiment['data']['paths']['run_dir'] else Path(experiment['evaluation']['output_dir']))
     # Required terminal evidence. Missing files intentionally raise rather than
     # turning an active or failed job into a completed negative experiment.
     complete=load(evaluation/'complete.json')
     cfg=load(train/'config.json');training=load(train/'summary.json')
+    evaluation_config=load(evaluation/'config.json')
     assert training['updates']>0 and training['base_unchanged']
     assert load(train/'base_before.json')['sha256']==training['base_sha256']
     assert cfg['freeze']['base_trainable']==cfg['freeze']['embed_trainable']==cfg['freeze']['lm_head_trainable']==0
@@ -112,8 +123,9 @@ def main():
     for name,digest in complete['artifacts_sha256'].items():
         assert sha256_file(str(evaluation/name))==digest,name
     train_audit=load(root/'cache_audit.json');eval_audit=load(root/'eval_cache_audit.json')
-    collection={split:load(root/folder/'summary.json') for split,folder in
-        (('fit_and_selection','latents'),('valid_seen','eval_latents'))}
+    collection={
+        'fit_and_selection':load(Path(cfg['latents'])/'summary.json'),
+        'valid_seen':load(Path(evaluation_config['experiment']['arguments']['latents'])/'summary.json')}
     total_train=cfg['fit_count']+cfg['selection_count']
     assert collection['fit_and_selection']['count']==total_train and collection['valid_seen']['count']==N_VALID_SEEN
     assert train_audit['count']==total_train and eval_audit['count']==N_VALID_SEEN
@@ -123,7 +135,8 @@ def main():
         exact=load(root/name)
         assert exact['passed']
         assert all(r['positions']==r['bitwise_equal_positions'] for r in exact['records'])
-    fit=lines(Path(cfg['fit']));selection=lines(Path(cfg['selection']));seen=lines(root/'valid_seen.jsonl')
+    fit=lines(Path(cfg['fit']));selection=lines(Path(cfg['selection']))
+    seen=lines(Path(evaluation_config['experiment']['arguments']['data']))
     fit_ids={r['id'] for r in fit};selection_ids={r['id'] for r in selection};seen_ids={r['id'] for r in seen}
     assert len(fit_ids)==cfg['fit_count'] and len(selection_ids)==cfg['selection_count'] and len(seen_ids)==N_VALID_SEEN
     assert fit_ids.isdisjoint(selection_ids) and fit_ids.isdisjoint(seen_ids) and selection_ids.isdisjoint(seen_ids)
@@ -135,7 +148,7 @@ def main():
         assert r['step']==i+1 and 1<len(r['ids'])<=cfg['global_batch']
         assert set(r['ids'])<=fit_ids and set(r['donors'])==set(r['ids'])
         assert all(x!=y for x,y in zip(r['ids'],r['donors']))
-        assert all(x in {n/10 for n in range(1,10)} for x in r['fractions'])
+        assert all(x in experiment['training']['latent_fractions'] for x in r['fractions'])
         assert np.isfinite(r['losses']).all() and math.isfinite(r['grad_norm_before_clip'])
         assert -math.log(2)-1e-5<=r['losses'][1]<=1e-5
         assert r['losses'][2]>=-1e-5
@@ -150,7 +163,7 @@ def main():
             key=stage+'_'+group;records=lines(evaluation/(key+'.jsonl'))
             assert len(records)==N_VALID_SEEN and {r['id'] for r in records}==seen_ids,key
             assert all(r['stage']==stage and r['group']==group for r in records)
-            assert all(0<=r['n_steps']<=20 for r in records)
+            assert all(0<=r['n_steps']<=experiment['evaluation']['max_steps'] for r in records)
             assert all(len(r['actions'])==r['n_steps'] for r in records)
             for r in records:
                 for name in ('controlled','random'):
@@ -159,7 +172,7 @@ def main():
                     assert abs(norm['injected_bf16_norm_ratio']-1)<1e-3
             record_sets[key]=records
     summary={k:summarize(v) for k,v in record_sets.items()}
-    pairs={g:comparison(record_sets['best_matched'],record_sets['best_'+g]) for g in GROUPS if g!='matched'}
+    pairs={g:comparison(record_sets['best_matched'],record_sets['best_'+g],experiment['evaluation']) for g in GROUPS if g!='matched'}
     teacher=load(evaluation/'selection_summary.json')
     for group in GROUPS:
         records=lines(evaluation/('selection_'+group+'.jsonl'))
@@ -178,7 +191,7 @@ def main():
             max(r['weights'][name] for r in updates)] for name in ('lr','sep','align')},
         'peak_training_allocated_bytes':max(r['peak_allocated_bytes'] for r in updates),
         'max_gradient_norm_before_clip':max(r['grad_norm_before_clip'] for r in updates),
-        'updates_with_gradient_clipping':sum(r['grad_norm_before_clip']>1 for r in updates),
+        'updates_with_gradient_clipping':sum(r['grad_norm_before_clip']>experiment['training']['grad_clip'] for r in updates),
         'selection_curve':vals,'groups':summary,'paired_success':pairs,'selection_nll':teacher,
         'sender_train_audit':train_audit,'sender_eval_audit':eval_audit,
         'sender_collection':collection,
@@ -190,7 +203,7 @@ def main():
     text=['# Frozen Receiver v1: training and evaluation report','',
         '## Validity and scope','',
         f'All required terminal artifacts and episode counts were verified. Execution errors: **{errors}**.',
-        'The Receiver was Qwen2.5-7B Base, frozen throughout. Only the 77,113,346-parameter full-length adapter was trained.',
+        f'The Receiver was {RECEIVER_MODEL}, frozen throughout. Only the {ADAPTER_PARAM_COUNT:,}-parameter full-length adapter was trained.',
         'This is the user-authorized frozen-Receiver variant, not the advisor-approved historical CE-only protocol or an equivalent reproduction of paper performance.',
         'Both agents received the goal and initial observation; these results do not demonstrate delivery of previously unknown environment facts.','',
         '## Executed budget','',
@@ -206,9 +219,9 @@ def main():
         f'- Selected update: {training["best"]["step"]}; initial/selected/last selection NLL: {training["initial_nll"]:.6f} / {training["best"]["nll"]:.6f} / {training["last_nll"]:.6f}.',
         f'- Full Base checksum before and after: `{training["base_sha256"]}`.',
         f'- One seed ({cfg["seed"]}). Selection used {len(selection_ids)} training-source holdouts; performance used the independent {len(seen_ids)} canonical valid_seen tasks.',
-        '- All published trajectories were retained without action corrections, including known replay failures.','',
+        f'- Prepared source: {len(fit)+len(selection)} trajectories; retained fit replay failures: {facts["fit_replay_failures"]}. Source and filtering details are recorded in the prepared-data manifest.','',
         '## Independent task behavior','',
-        '| Stage / group | Successes / 140 | Success 95% Wilson interval | Parse-error episodes | Admissible / executed actions | Capped / generated turns |',
+        f'| Stage / group | Successes / {N_VALID_SEEN} | Success 95% Wilson interval | Parse-error episodes | Admissible / executed actions | Capped / generated turns |',
         '|---|---:|---:|---:|---:|---:|']
     for key,r in summary.items():
         lo,hi=r['success_wilson_95']

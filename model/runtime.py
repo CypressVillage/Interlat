@@ -6,10 +6,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from common import HIDDEN_SIZE
-
 import torch
 from model.receiver import render
+from configs.config import load_config
 
 
 def load_rows(path, tok, latent_dir=None, limit=0):
@@ -32,15 +31,17 @@ def load_rows(path, tok, latent_dir=None, limit=0):
     return rows
 
 
-def latent(row):
+def latent(row, hidden_size=None):
+    hidden_size = hidden_size if hidden_size is not None else load_config()['model']['adapter']['hidden_size']
     h = torch.load(row['latent_path'], map_location='cpu', weights_only=True)
-    assert list(h.shape) == [len(row['plan']['token_ids']), HIDDEN_SIZE]
+    assert h.ndim == 2 and h.shape[0] == len(row['plan']['token_ids'])
+    assert h.shape[1] == hidden_size
     assert torch.isfinite(h).all()
     return h[:len(row['plan']['communication_token_ids'])].cuda().float()
 
 
 def adapted(receiver, row):
-    return receiver.adapter.process_hidden_states(latent(row))
+    return receiver.adapter.process_hidden_states(latent(row, receiver.adapter.hidden_size))
 
 
 def text_message(receiver, row):

@@ -4,20 +4,20 @@
 ALFWorld 评估 → 完整性审计和汇总。
 
 本分支仅保留当前 Step 1 流程，不是上游联合训练方法的完整复现。
-历史采集、联合训练、压缩、评估和 shell 编排流程及其 CLI 入口已移除；
-Step 1 所需投影在 `model/adapter.py` 中自包含，保留上游初始化与计算。
-
-从项目根目录使用 `uv` 运行命令。依赖以 `pyproject.toml` 和 `uv.lock` 为准，
-`setup.py` 仅为 setuptools 入口；环境准备与平台限制见 [ENVIRONMENT.md](ENVIRONMENT.md)。
+历史采集、联合训练、压缩、评估和 shell 编排流程及其 CLI 入口已移除。
+从本目录使用 `uv` 运行命令；依赖以 `pyproject.toml` 和 `uv.lock` 为准，
+`setup.py` 为 setuptools 入口。环境准备与平台限制见 [ENVIRONMENT.md](ENVIRONMENT.md)。
 
 ## 文件职责
 
-- `common.py`：模型 revision、维度、固定种子与预算常量，文件哈希/JSON 工具数据路径与默认产物目录
+- `configs/step1.yaml`：当前完整实验配置，按模型、数据准备、训练和评估分组。
+- `configs/config.py`：直接读取 YAML，并展开数据和输出路径；各模块直接取对应字段。
+- `utils/hashing.py`：文件哈希与 JSON 写入工具。
 - `alfworld_utils.py`：canonical 游戏枚举、环境创建、观察清理与原有动作解析规则。
 - `model/`
   - `receiver.py`：Receiver ChatML 渲染、监督标签与潜在消息注入；消息注入在首个 user 结束符之前。
-  - `adapter.py`：适配器算子、冻结边界、embedding 注入与 CE 前向；包含原样保留的上游 AdaptiveProjection，不再依赖旧训练目录。
-  - `runtime.py`：Base 加载、数据/latent 读取、监督位置对齐与 NLL。
+  - `adapter.py`：适配器算子，包含原样保留的上游 AdaptiveProjection，不再依赖旧训练目录。
+  - `runtime.py`：数据/latent 读取、监督位置对齐与 NLL；Base 加载、冻结边界、embedding 注入与 CE 前向在 `receiver.py`。
 - `data_collection/`
   - `gen_training_data.py`：成功 ETO 子集转换、原 seed-42 的 5% selection 划分。
   - `gen_eval_tasks.py`：准备 140 个 valid_seen 初始状态，不读取专家动作作为答案。
@@ -31,12 +31,72 @@ Step 1 所需投影在 `model/adapter.py` 中自包含，保留上游初始化�
 
 ## 环境与执行顺序
 
-预处理数据目录：PREPARED，训练/评估运行目录：RUN。默认路径为
-`$PWD/data/prepared` 和 `$PWD/data/runs/frozen_receiver_v1`，可通过环境变量覆盖。
+### 实验配置
+
+默认使用 [`configs/step1.yaml`](configs/step1.yaml)，不传参数时保持原来的实验默认值。
+调整模型、学习率、batch、epoch、损失权重或数据路径，只需修改 YAML，不再修改实现代码。
+当前默认配置的 Base 与缓存使用 `bfloat16`。
+Adapter 参数量由配置维度计算，不再手填常量。
+
+建立另一次实验时，复制整个文件，并使用独立的 `data.paths.run_dir` 和（需要重新划分时）
+`data.paths.prepared_dir`；每份 YAML 都必须完整，不使用隐藏的配置继承。
+保持现有模块布局，不为此次配置整理迁移到 `src/`。
 
 ```bash
-export PREPARED="$PWD/data/prepared"
-export RUN="$PWD/data/runs/frozen_receiver_v1"
+cp configs/step1.yaml configs/my_experiment.yaml
+# 修改 my_experiment.yaml 中的参数和输出目录；各阶段使用同一配置。
+uv run --no-sync python -m data_collection.gen_sender_messages --config configs/my_experiment.yaml
+uv run --no-sync python -m train.train_step1 --config configs/my_experiment.yaml
+uv run --no-sync python -m eval.eval_adapter --config configs/my_experiment.yaml --selection
+uv run --no-sync python -m eval.summarize_results --config configs/my_experiment.yaml
+```
+
+所有数据准备入口也支持 `--config`。YAML 相对路径以 `code/` 为基准；
+`${data.paths.run_dir}` 等字段引用会递归展开，支持嵌套字典和列表；完整字段引用保留原值类型。
+以 `_dir` / `_path` 结尾的字段自动按路径处理，相对路径以 `code/` 为基准；
+既有的 `alfworld_games`、`train_latents`、`eval_latents` 保留路径语义。
+新增符合命名约定的路径字段无需再修改读取器；`name_or_path` 保留 Hugging Face 模型标识语义，
+不自动转成绝对路径，其他普通字符串也不转换。
+循环引用会报错；不额外做实验字段、类型或范围校验。
+公共根目录集中在 `data.paths`，也供训练和评估输出引用，不再设置顶层 `paths`。
+`data` 内按准备环节划分为 `source`（原始数据）、`replay`（重放审计）、
+`successful`（成功筛选）、`split`（转换与划分）、`eval_tasks`（评估任务准备）和
+`collection`（Sender 计划与 latent 采集）；采集参数不再作为顶层分组。
+支持 `${data.successful.output_dir}` 等多级路径引用。
+配置读取器只读取 YAML，不再读取 `PREPARED` / `RUN` 环境变量。
+现有命令行仅覆盖其对应入口选项，不会把一个阶段的 `--out-dir` 自动传给下一阶段；
+正式实验建议统一改 YAML。`--smoke`、`--resume-epoch` 和诊断参数仍是执行控制选项。
+
+各阶段的 `config.json` 或 manifest 保存 `experiment.settings`（路径展开后的完整 YAML）
+与 `experiment.arguments`（含命令行覆盖的实际入口参数）；训练 checkpoint 也携带该记录。
+续训继续使用原有的源码与数据哈希核验；旧产物必须使用原代码快照，不修改旧记录。
+本次仅整理配置，未启动训练或改变默认实验目标。
+
+### 2026-11-09 完整训练配置
+
+[`configs/step1_full_20261109.yaml`](configs/step1_full_20261109.yaml) 沿用 18 步检查的训练参数：
+batch 16、3 epochs、峰值学习率 1e-5、3% warmup、无时间/更新步数上限。
+复用 `data/prepared/` 的 2,244 条 fit / 118 条 selection 和
+`data/runs/frozen_receiver_v1/latents/` 的 Sender 缓存，从相同种子重新初始化 adapter。
+新运行输出到 `data/runs/frozen_receiver_full_20261109/train/`，计划 423 次更新、13 步 warmup。
+保存每 25 步及每个 epoch 的 checkpoint，初始化和各 epoch 的 selection NLL 用于选择最佳模型。
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --no-sync python -u -m train.train_step1 \
+  --config configs/step1_full_20261109.yaml
+```
+
+GB10 使用 `ENVIRONMENT.md` 中记录的 GPU 环境（torch 2.9.1+cu128），运行命令保留
+`--no-sync`；锁文件的 torch 2.4.1 在本机 ARM 上会解析成 CPU 版本，不能用于本次训练。
+
+预处理和运行根目录分别由 YAML 的 `data.paths.prepared_dir`、`data.paths.run_dir` 配置。
+默认路径为 `code/data/prepared` 和 `code/data/runs/frozen_receiver_v1`；修改根目录请编辑配置文件。
+
+```yaml
+data:
+  paths:
+    prepared_dir: data/prepared
+    run_dir: data/runs/frozen_receiver_v1
 ```
 
 1. 重放公开轨迹并保留完整审计，再导出成功子集、转换数据与固定划分
@@ -66,13 +126,13 @@ uv run --no-sync python -m eval.summarize_results
 
 ### 轨迹重放审计
 
-审计直接读取 `common.py` 的原始 ETO JSON 和包含 `train/` 的 ALFWorld 目录。
-输出目录（默认 `$RUN/replay/`）必须是新目录。审计不加载模型、不使用 GPU，也不额外限制动作步数；
+审计直接读取 YAML 的 `data.source.eto_path` 和包含 `train/` 的 `data.source.alfworld_games` 目录。
+输出目录（默认 `data/runs/frozen_receiver_v1/replay/`）必须是新目录。审计不加载模型、不使用 GPU，也不额外限制动作步数；
 执行原始动作直到轨迹结束或环境终止。失败和异常均逐条保留，不用于自动过滤样本。
 
 输出为 `replay.jsonl`（每条轨迹的成功状态、初始观察匹配、观察差异和异常）、
 `summary.json`（汇总）及 `config.json`（来源、代码哈希、依赖版本）。
-`gen_training_data.py` 默认读取成功子集，并按 ID 从 `$RUN/replay/replay.jsonl` 附加审计信息、校验成功状态。
+`gen_training_data.py` 默认读取成功子集，并按 ID 从配置的审计目录中的 `replay.jsonl` 附加审计信息、校验成功状态。
 审计不证明该公开数据就是论文最终训练数据，也不是模型成功率评估。
 
 首次检查可加 `--limit 2`；这只重放前两条，不能直接供全量数据转换使用。
@@ -88,12 +148,16 @@ uv run --no-sync python -m data_collection.filter_successful_eto
 
 脚本核验源数据和审计哈希、完整性及 ID 一一对应，仅保留 `success=true`、
 `reason=won` 且无执行/关闭错误的原始记录，不要求中间观察完全匹配。
-默认输出 `$RUN/successful_eto/alfworld_sft_successful.json` 和来源/筛选 manifest；
+默认输出 `data/runs/frozen_receiver_v1/successful_eto/alfworld_sft_successful.json` 和来源/筛选 manifest；
 保留原始记录内容及顺序，不覆盖已有目录，不修改原数据或审计。
 这只是当前环境回放成功子集，不是模型评估结果，也不代表论文最终训练数据。
-数据源路径统一配置在 `common.py`：`ETO_DATA` 为原始数据，`SUCCESSFUL_ETO_DIR` /
-`SUCCESSFUL_ETO_DATA` 为成功子集目录/文件，`TRAIN_SOURCE` 指定预处理输入（默认成功子集）。
-审计路径使用 `ETO_AUDIT_DIR` / `ETO_AUDIT_DATA`，评估输入使用 `VALID_SEEN_DATA`。
+数据源路径配置在 `data.source`；成功子集只配置 `data.successful.output_dir`，
+文件名固定为 `alfworld_sft_successful.json`，不再单独配置 `output_path`。
+划分程序直接从 `data.successful.output_dir` 读取 `alfworld_sft_successful.json`，不再单独配置输入目录。
+`data.split.output_dir` 指定划分输出目录，默认引用 `data.paths.prepared_dir`；
+划分程序固定写入 `fit.jsonl`、`selection.jsonl` 和 `manifest.json`，采集、训练及评估从该目录读取对应文件。
+审计只配置 `data.replay.output_dir`，记录文件固定为该目录下的 `replay.jsonl`，
+不再单独配置 `audit_path`。评估输入使用 `data.eval_tasks.output_path`。
 导出不会自动重新划分；随后运行 `gen_training_data`，它要求源数据全部为审计成功记录。
 
 ## 续训
@@ -128,8 +192,8 @@ uv run --no-sync python -m data_collection.filter_successful_eto
 
 ```bash
 uv run --no-sync python -m train.train_step1 \
-  --out-dir "$RUN/continued_train" \
-  --epochs 3 --resume-epoch "$RUN/train/epoch_01.pt"
+  --out-dir data/runs/frozen_receiver_v1/continued_train \
+  --epochs 3 --resume-epoch data/runs/frozen_receiver_v1/train/epoch_01.pt
 ```
 
 - `--epochs 3` 是总共三轮，不是额外三轮；保留已有 AdamW 重建语义，不声称完整恢复优化器/RNG。
@@ -143,9 +207,9 @@ uv run --no-sync python -m train.train_step1 \
 
 ## 规范与历史
 
-当前模块直接位于项目根目录，命令使用 `python -m data_collection.…`、
+当前模块直接位于本目录，命令使用 `python -m data_collection.…`、
 `python -m train.train_step1` 和 `python -m eval.…`，不提供旧 `scripts` 或 `step1` 兼容入口。
-源码哈希使用根目录下的模块路径（如 `train/train_step1.py`）；目录迁移不是旧 checkpoint 的兼容转换。
+源码哈希使用根目录模块路径（如 `train/train_step1.py`）；目录迁移不是旧 checkpoint 的兼容转换。
 旧运行须使用其原始源码快照，不改写 manifest、不放宽续训校验。
 
 2026-11-03 按用户要求清理了本地历史实验产物，包括旧 fit/selection、latent、

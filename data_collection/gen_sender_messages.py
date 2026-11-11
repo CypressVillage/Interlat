@@ -9,8 +9,7 @@ import json
 import time
 from pathlib import Path
 
-from common import (SENDER_MODEL as MODEL, SENDER_REVISION as REVISION,
-    SENDER_MAX_NEW_TOKENS, PREPARED_DIR, DEFAULT_RUN_DIR)
+from configs.config import config_for_parser, load_config
 from utils.hashing import sha256_file, write_json
 
 import torch
@@ -22,22 +21,24 @@ def sender_prompt(task):
     return '<|im_start|>user\n'+text+'<|im_end|>\n<|im_start|>assistant\n'
 
 
-def sample(logits, generator):
-    scores = logits.float() / .7
-    values, indices = scores.topk(50)
+def sample(logits, generator, config=None):
+    config = config if config is not None else load_config()['data']['collection']
+    scores = logits.float() / config['temperature']
+    values, indices = scores.topk(config['top_k'])
     probs = values.softmax(-1)
-    mask = probs.cumsum(-1) - probs > .9
+    mask = probs.cumsum(-1) - probs > config['top_p']
     probs = probs.masked_fill(mask, 0)
     return indices[torch.multinomial(probs, 1, generator=generator)].item()
 
 
 @torch.no_grad()
-def collect_batch(model, tok, rows, cap):
+def collect_batch(model, tok, rows, cap, config=None):
+    config = config if config is not None else load_config()['data']['collection']
     inputs = tok([sender_prompt(r['sender_task']) for r in rows], padding=True,
                  return_tensors='pt').to('cuda')
     ids, mask = inputs.input_ids, inputs.attention_mask
     rngs = [torch.Generator(device='cuda').manual_seed(
-        int(hashlib.sha256(('42:'+r['id']).encode()).hexdigest()[:15], 16)) for r in rows]
+        int(hashlib.sha256((str(config['seed'])+':'+r['id']).encode()).hexdigest()[:15], 16)) for r in rows]
     tokens = [[] for r in rows]
     states = [[] for r in rows]
     done = [False] * len(rows)
@@ -53,7 +54,7 @@ def collect_batch(model, tok, rows, cap):
         logits = model.lm_head(h)
         next_ids = []
         for i in range(len(rows)):
-            t = tok.eos_token_id if done[i] else sample(logits[i], rngs[i])
+            t = tok.eos_token_id if done[i] else sample(logits[i], rngs[i], config)
             next_ids.append(t)
             if not done[i]:
                 tokens[i].append(t)
@@ -69,33 +70,40 @@ def collect_batch(model, tok, rows, cap):
 
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--split', choices=('train', 'eval'), default='train', help='train: PREPARED fit/selection to RUN/latents; eval: RUN/valid_seen.jsonl to RUN/eval_latents')
+    experiment = config_for_parser(ap, argv)
+    ap.add_argument('--split', choices=('train', 'eval'), default='train', help='train: configured fit/selection inputs and train_latents; eval: configured eval_tasks input and eval_latents')
     ap.add_argument('--data', nargs='+', help='override the input paths selected by --split')
     ap.add_argument('--out-dir', help='override the cache directory selected by --split')
-    ap.add_argument('--batch-size', type=int, default=8)
-    ap.add_argument('--max-new-tokens', type=int, default=SENDER_MAX_NEW_TOKENS)
+    ap.add_argument('--batch-size', type=int, default=experiment['data']['collection']['batch_size'])
+    ap.add_argument('--max-new-tokens', type=int, default=experiment['data']['collection']['max_new_tokens'])
     ap.add_argument('--limit', type=int, default=0)
     a = ap.parse_args(argv)
     if a.data is None:
-        a.data = ([f'{PREPARED_DIR}/fit.jsonl', f'{PREPARED_DIR}/selection.jsonl']
-                  if a.split == 'train' else [f'{DEFAULT_RUN_DIR}/valid_seen.jsonl'])
+        a.data = ([str(Path(experiment['data']['split']['output_dir']) / name)
+                   for name in ('fit.jsonl', 'selection.jsonl')]
+                  if a.split == 'train' else [experiment['data']['eval_tasks']['output_path']])
     if a.out_dir is None:
-        a.out_dir = f'{DEFAULT_RUN_DIR}/latents' if a.split == 'train' else f'{DEFAULT_RUN_DIR}/eval_latents'
+        a.out_dir = experiment['data']['collection']['train_latents' if a.split == 'train' else 'eval_latents']
     return a
 
 
 def main():
     a = parse_args()
+    experiment = load_config(a.config)
+    collection = experiment['data']['collection']
+    model_config = experiment['model']['sender']
+    MODEL, REVISION = model_config['name_or_path'], model_config['revision']
     out = Path(a.out_dir); out.mkdir(parents=True, exist_ok=True)
     rows = [json.loads(line) for p in a.data for line in Path(p).read_text().splitlines()]
     if a.limit:
         rows = rows[:a.limit]
     assert len({r['id'] for r in rows}) == len(rows)
-    config = {'model': MODEL, 'revision': REVISION, 'temperature': .7, 'top_p': .9,
-              'top_k': 50, 'repetition_penalty': 1., 'num_beams': 1,
+    config = {'model': MODEL, 'revision': REVISION, 'temperature': collection['temperature'], 'top_p': collection['top_p'],
+              'top_k': collection['top_k'], 'repetition_penalty': 1., 'num_beams': 1,
               'max_new_tokens': a.max_new_tokens, 'batch_size': a.batch_size,
-              'rng': 'task-specific SHA256(42:id) first 15 hex digits',
-              'attention': 'sdpa', 'dtype': 'bfloat16',
+              'rng': f"task-specific SHA256({collection['seed']}:id) first 15 hex digits",
+              'attention': model_config['attention'], 'dtype': model_config['dtype'],
+              'experiment': {'settings': experiment, 'arguments': vars(a)},
               'data': {p: sha256_file(p) for p in a.data},
               'latent': 'last layer immediately BEFORE predicting each token; includes EOS; no truncation',
               'limit': a.limit}
@@ -114,12 +122,12 @@ def main():
     tok = AutoTokenizer.from_pretrained(MODEL, revision=REVISION, padding_side='left')
     tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(MODEL, revision=REVISION,
-            torch_dtype=torch.bfloat16, attn_implementation='sdpa').cuda().eval()
+            torch_dtype=getattr(torch, model_config['dtype']), attn_implementation=model_config['attention']).cuda().eval()
     model.requires_grad_(False)
     start = time.time()
     for j in range(0, len(pending), a.batch_size):
         chunk = pending[j:j+a.batch_size]
-        results = collect_batch(model, tok, chunk, a.max_new_tokens)
+        results = collect_batch(model, tok, chunk, a.max_new_tokens, collection)
         for r, (ids, h) in zip(chunk, results):
             tensor_path = out/(r['id']+'.pt')
             torch.save(h, tensor_path)

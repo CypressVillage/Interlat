@@ -26,27 +26,28 @@ import math
 import torch
 import torch.nn as nn
 
-from common import HIDDEN_SIZE, ADAPTER_HEADS
+from configs.config import load_config
 
 class AdaptiveProjection(nn.Module):
     """Upstream projection retained locally without the legacy training pipeline."""
 
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size, config=None):
         super().__init__()
-        self.scale = nn.Parameter(torch.tensor(0.2))
-        self.output_scale = nn.Parameter(torch.tensor(0.1))
+        self.config = config if config is not None else load_config()['model']['adapter']
+        self.scale = nn.Parameter(torch.tensor(float(self.config['scale_init'])))
+        self.output_scale = nn.Parameter(torch.tensor(float(self.config['output_scale_init'])))
         self.proj = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.GELU(),
-            nn.LayerNorm(hidden_size),
+            nn.LayerNorm(hidden_size, eps=self.config['projection_layer_norm_eps']),
             nn.Linear(hidden_size, hidden_size),
         )
         self._init_weights()
 
     def _init_weights(self):
-        nn.init.normal_(self.proj[0].weight, mean=0, std=0.02)
+        nn.init.normal_(self.proj[0].weight, mean=0, std=self.config['weight_init_std'])
         nn.init.zeros_(self.proj[0].bias)
-        nn.init.xavier_uniform_(self.proj[3].weight, gain=1e-2)
+        nn.init.xavier_uniform_(self.proj[3].weight, gain=self.config['projection_output_gain'])
         nn.init.zeros_(self.proj[3].bias)
 
     def forward(self, x):
@@ -56,15 +57,18 @@ class AdaptiveProjection(nn.Module):
 
 
 class Step1Adapter(nn.Module):
-    def __init__(self, hidden_size: int = HIDDEN_SIZE, num_heads: int = ADAPTER_HEADS):
+    def __init__(self, hidden_size: int = None, num_heads: int = None, config=None):
         super().__init__()
+        config = config if config is not None else load_config()['model']['adapter']
+        hidden_size = hidden_size if hidden_size is not None else config['hidden_size']
+        num_heads = num_heads if num_heads is not None else config['num_heads']
         self.hidden_size = hidden_size
         self.hidden_mha = nn.MultiheadAttention(
-            embed_dim=hidden_size, num_heads=num_heads, batch_first=True, dropout=0.1
+            embed_dim=hidden_size, num_heads=num_heads, batch_first=True, dropout=config['dropout']
         )
-        self.pre_ln = nn.LayerNorm(hidden_size, eps=1e-6)
-        self.post_ln = nn.LayerNorm(hidden_size, eps=1e-6)
-        self.adaptive_proj = AdaptiveProjection(hidden_size)
+        self.pre_ln = nn.LayerNorm(hidden_size, eps=config['layer_norm_eps'])
+        self.post_ln = nn.LayerNorm(hidden_size, eps=config['layer_norm_eps'])
+        self.adaptive_proj = AdaptiveProjection(hidden_size, config)
         self._init_mha_weights()
 
     def _init_mha_weights(self):

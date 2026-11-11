@@ -10,8 +10,7 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
-from common import (TRAIN_SEED, GLOBAL_BATCH, PREPARED_DIR, DEFAULT_RUN_DIR,
-    RECEIVER_MODEL, RECEIVER_REVISION)
+from configs.config import config_for_parser, load_config
 from utils.hashing import sha256_file, write_json
 from model.receiver import load_receiver
 from model.runtime import (load_rows, adapted, latent,
@@ -33,7 +32,7 @@ def communication_mix(text_embeddings, latent, latent_fraction):
     return torch.cat((latent[:k], text_embeddings[k:]), dim=0)
 
 
-def align_donor_latent(donor, target_length):
+def align_donor_latent(donor, target_length, noise_std=None):
     """Match upstream negative length handling before adapter self-attention.
 
     Longer/equal donors are sliced without noise. Shorter donors are repeated,
@@ -45,7 +44,9 @@ def align_donor_latent(donor, target_length):
         return donor[:target_length]
     repeats = target_length // donor.shape[0] + 1
     repeated = donor.repeat(repeats, 1)[:target_length]
-    return repeated + torch.randn_like(repeated)*.01
+    if noise_std is None:
+        noise_std = load_config()['training']['donor_noise_std']
+    return repeated + torch.randn_like(repeated)*noise_std
 
 
 def paper_losses(matched, mismatched, text, labels):
@@ -82,10 +83,11 @@ def paper_losses(matched, mismatched, text, labels):
     }
 
 
-def schedule(step, total):
-    warmup = math.ceil(total*.03)
+def schedule(step, total, config=None):
+    config = config if config is not None else load_config()['training']
+    warmup = math.ceil(total*config['warmup_ratio'])
     lr_scale = (step+1)/warmup if step < warmup else .5*(1+math.cos(math.pi*(step-warmup)/max(1,total-warmup)))
-    return {'lr': 1e-5*lr_scale}
+    return {'lr': config['learning_rate']*lr_scale}
 
 
 def training_stop_reason(step, stop_after_updates, elapsed_s, max_hours):
@@ -97,32 +99,36 @@ def training_stop_reason(step, stop_after_updates, elapsed_s, max_hours):
     return None
 
 
-def dynamic_loss_weights(negative_js, plan_similarity):
+def dynamic_loss_weights(negative_js, plan_similarity, config=None):
     """Upstream coefficient ranges/controller, retaining our existing objectives.
 
     Upstream expects a nonnegative contrast loss; use max(0, .69 - JS)
     only as its control signal, not as a replacement for negative-JS loss.
     Preserve differentiation through the coefficients as upstream does.
     """
-    contrast_signal = (.69 + negative_js).clamp(min=0.)
+    config = config if config is not None else load_config()['training']['loss_weights']
+    contrast_signal = (config['js_reference'] + negative_js).clamp(min=0.)
     return {
-        'sep': .01 + .49 * (contrast_signal / .69).clamp(0., 1.),
-        'align': .01 + .04 * (plan_similarity / 4.).clamp(0., 1.),
+        'sep': config['sep_min'] + config['sep_range'] * (contrast_signal / config['js_reference']).clamp(0., 1.),
+        'align': config['align_min'] + config['align_range'] * (plan_similarity / config['plan_reference']).clamp(0., 1.),
     }
 
 
-def epoch_batches(count, group_size, rng):
+def epoch_batches(count, group_size, rng, fractions=None):
+    fractions = fractions if fractions is not None else load_config()['training']['latent_fractions']
     order = list(range(count)); rng.shuffle(order)
     for offset in range(0, count, group_size):
         indices = order[offset:offset+group_size]
         assert len(indices) > 1, 'negative requires another task'
         shift = rng.randrange(1,len(indices))
-        fractions = [rng.randrange(1,10)/10 for _ in indices]
-        yield indices, shift, fractions
+        sampled = [rng.choice(fractions) for _ in indices]
+        yield indices, shift, sampled
 
 
-def loss_from_hidden(head, hm, hn, ht, labels, chunk_size=64):
+def loss_from_hidden(head, hm, hn, ht, labels, chunk_size=None, config=None):
     """Exact full-vocabulary objectives, checkpointed by supervised-token chunks."""
+    config = config if config is not None else load_config()['training']
+    chunk_size = chunk_size if chunk_size is not None else config['loss_chunk_size']
     def chunk(m, n, t, y):
         losses = paper_losses(head(m), head(n), head(t), y)
         return torch.stack([losses[k] for k in (
@@ -133,7 +139,7 @@ def loss_from_hidden(head, hm, hn, ht, labels, chunk_size=64):
         part = checkpoint(chunk, *args, use_reentrant=False) if torch.is_grad_enabled() else chunk(*args)
         components = components+part*(len(args[-1])/len(labels))
     plan_similarity = components[2] + components[3]
-    weights = dynamic_loss_weights(components[1], plan_similarity)
+    weights = dynamic_loss_weights(components[1], plan_similarity, config['loss_weights'])
     total = components[0] + weights['sep'] * components[1] + weights['align'] * plan_similarity
     return total, components, weights
 
@@ -198,14 +204,20 @@ def resume_history(checkpoint_path, resume):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--fit', default=f'{PREPARED_DIR}/fit.jsonl', help='prepared fit tasks')
-    ap.add_argument('--selection', default=f'{PREPARED_DIR}/selection.jsonl', help='prepared checkpoint-selection tasks')
-    ap.add_argument('--latents', default=f'{DEFAULT_RUN_DIR}/latents', help='Sender cache directory')
-    ap.add_argument('--out-dir', default=f'{DEFAULT_RUN_DIR}/train', help='new training output directory')
+    experiment = config_for_parser(ap)
+    training = experiment['training']
+    TRAIN_SEED = training['seed']
+    GLOBAL_BATCH = training['global_batch']
+    RECEIVER_MODEL = experiment['model']['receiver']['name_or_path']
+    RECEIVER_REVISION = experiment['model']['receiver']['revision']
+    ap.add_argument('--fit', default=str(Path(experiment['data']['split']['output_dir']) / 'fit.jsonl'), help='prepared fit tasks')
+    ap.add_argument('--selection', default=str(Path(experiment['data']['split']['output_dir']) / 'selection.jsonl'), help='prepared checkpoint-selection tasks')
+    ap.add_argument('--latents', default=experiment['data']['collection']['train_latents'], help='Sender cache directory')
+    ap.add_argument('--out-dir', default=training['output_dir'], help='new training output directory')
 
-    ap.add_argument('--epochs', type=int, default=3)
-    ap.add_argument('--max-hours', type=float, default=0, help='optional wall-clock limit; 0 disables it')
-    ap.add_argument('--stop-after-updates', type=int, default=0,
+    ap.add_argument('--epochs', type=int, default=training['epochs'])
+    ap.add_argument('--max-hours', type=float, default=training['max_hours'], help='optional wall-clock limit; 0 disables it')
+    ap.add_argument('--stop-after-updates', type=int, default=training['stop_after_updates'],
                     help='stop at this global optimizer step without shortening the LR schedule; 0 disables it')
     ap.add_argument('--diagnostic-probes', help='JSON list of fit IDs and fixed latent_fraction values; measure at start and each update')
     ap.add_argument('--resume-epoch', help='completed-epoch checkpoint; restart AdamW from saved adapter weights')
@@ -219,7 +231,7 @@ def main():
     torch.manual_seed(TRAIN_SEED)
     random.seed(TRAIN_SEED)
 
-    receiver, tok, freeze = load_receiver(checkpointing=True)
+    receiver, tok, freeze = load_receiver(checkpointing=True, config=experiment['model'])
     fit = load_rows(a.fit, tok, a.latents, limit=2 if a.smoke else 0)
     selection = fit if a.smoke else load_rows(a.selection, tok, a.latents)
     if a.smoke:
@@ -227,7 +239,7 @@ def main():
     assert not ({r['id'] for r in fit}&{r['id'] for r in selection}) or a.smoke
 
     group_size = GLOBAL_BATCH if not a.smoke else 2
-    total_steps = math.ceil(len(fit)/group_size)*a.epochs
+    total_steps = math.ceil( len(fit) / group_size ) * a.epochs
     resume = None; history = None; start_epoch = 0; start_step = 0
     if a.resume_epoch:
         resume = torch.load(a.resume_epoch, map_location='cpu', weights_only=False)
@@ -251,14 +263,15 @@ def main():
     config = {**vars(a), 'base': RECEIVER_MODEL, 'base_revision': RECEIVER_REVISION, 'seed': TRAIN_SEED,
         'fit_count': len(fit), 'selection_count': len(selection), 'global_batch': group_size,
         'serial_microbatch': 1, 'max_updates': total_steps, 'optimizer': 'AdamW',
-        'weight_decay': 0., 'betas': [.9, .999], 'eps': 1e-8, 'grad_clip': 1.,
-        'warmup_updates': math.ceil(total_steps*.03), 'lr_schedule': '3% linear warmup then cosine',
-        'lambda_sep': '0.01 + 0.49 * clip(max(0, 0.69 - JS) / 0.69, 0, 1)',
-        'lambda_align': '0.01 + 0.04 * clip((KL + cosine_distance) / 4, 0, 1)',
+        'experiment': {'settings': experiment, 'arguments': vars(a)},
+        'weight_decay': training['weight_decay'], 'betas': training['betas'], 'eps': training['eps'], 'grad_clip': training['grad_clip'],
+        'warmup_updates': math.ceil(total_steps*training['warmup_ratio']), 'lr_schedule': 'linear warmup then cosine',
+        'lambda_sep': 'sep_min + sep_range * clip(max(0, js_reference - JS) / js_reference, 0, 1)',
+        'lambda_align': 'align_min + align_range * clip((KL + cosine_distance) / plan_reference, 0, 1)',
         'loss_weight_policy': 'per-example full-supervised-token losses; differentiable coefficients; upstream controller only, original objectives retained',
         'alpha': 1., 'beta': 1.,
-        'mix': 'uniform latent fraction r in {.1,.2,...,.9}; matched/donor latent prefix then current-task text suffix; round(r*L); same r for both branches',
-        'training_mismatch': 'different-ID cyclic donor; raw latent truncated or repeated to current-task content length before adapter; repeated donors receive N(0, 0.01^2) noise; current-task text retained',
+        'mix': 'uniform choice from configured latent_fractions; matched/donor latent prefix then current-task text suffix; round(r*L); same r for both branches',
+        'training_mismatch': 'different-ID cyclic donor; raw latent truncated or repeated to current-task content length before adapter; repeated donors receive configured Gaussian noise; current-task text retained',
         'terminal_eos': 'retained in source cache; excluded from both text and latent communication',
         'gradient_policy': 'both mixed matched and mixed donor; text frozen/no_grad',
         'normalization': 'supervised-token mean within each optimizer batch, including partial last batch',
@@ -267,7 +280,7 @@ def main():
         'source_hashes': {p: sha256_file(p) for p in [a.fit,a.selection,
             str(Path(a.latents)/'config.json'),
             'train/train_step1.py','train/diagnostics.py','model/runtime.py',
-            'common.py','model/receiver.py','eval/controls.py',
+            'configs/config.py','utils/hashing.py',a.config,'model/receiver.py','eval/controls.py',
             'model/adapter.py']},
         'freeze': freeze, 'delimiter_init': receiver.delimiter_init_report,
         'resume': None if resume is None else {'checkpoint_sha256': sha256_file(a.resume_epoch),
@@ -279,7 +292,8 @@ def main():
     write_json(str(out/'config.json'), config)
     before = parameter_fingerprint(receiver.base_model)
     write_json(str(out/'base_before.json'), {'sha256': before})
-    opt = torch.optim.AdamW(receiver.adapter.parameters(), lr=1e-5, weight_decay=0.)
+    opt = torch.optim.AdamW(receiver.adapter.parameters(), lr=training['learning_rate'],
+        weight_decay=training['weight_decay'], betas=tuple(training['betas']), eps=training['eps'])
     start = time.time()
     def log(rec):
         rec = {'elapsed_s': time.time()-start, **rec}
@@ -313,13 +327,13 @@ def main():
     rng = random.Random(TRAIN_SEED)
     # Replay inexpensive sampling only, preserving the original epoch-2/3 ordering.
     for epoch in range(a.epochs):
-        for indices, shift, fractions in epoch_batches(len(fit), group_size, rng):
+        for indices, shift, fractions in epoch_batches(len(fit), group_size, rng, training['latent_fractions']):
             if epoch < start_epoch:
                 continue
             chunk = [fit[i] for i in indices]
-            donors = chunk[shift:]+chunk[:shift]
+            donors = chunk[shift:] + chunk[:shift]
             tokens = sum(sum(l != -100 for l in r['rendered'].labels[1:]) for r in chunk)
-            weights = schedule(step,total_steps)
+            weights = schedule(step,total_steps,training)
             for g in opt.param_groups:
                 g['lr'] = weights['lr']
             opt.zero_grad(set_to_none=True)
@@ -331,7 +345,7 @@ def main():
             for row, donor, fraction in zip(chunk,donors,fractions):
                 text = text_message(receiver,row)
                 z = adapted(receiver,row)
-                donor_raw = align_donor_latent(latent(donor), len(text))
+                donor_raw = align_donor_latent(latent(donor, receiver.adapter.hidden_size), len(text), training['donor_noise_std'])
                 zd = receiver.adapter.process_hidden_states(donor_raw)
                 mixed = communication_mix(text,z,fraction)
                 negative = communication_mix(text,zd,fraction)
@@ -340,7 +354,7 @@ def main():
                 with torch.no_grad():
                     ht,yt = supervised_hidden(receiver,row['rendered'],text)
                 assert torch.equal(y,yn) and torch.equal(y,yt)
-                loss, parts, coefficients = loss_from_hidden(receiver.base_model.lm_head,hm,hn,ht,y)
+                loss, parts, coefficients = loss_from_hidden(receiver.base_model.lm_head,hm,hn,ht,y,config=training)
                 if not torch.isfinite(loss):
                     raise FloatingPointError(f'nonfinite loss at update {step}, task {row["id"]}')
                 weight = len(y)/tokens
@@ -354,7 +368,7 @@ def main():
                 values += parts.detach().cpu()*weight
                 norms.append(float(z.detach().norm(dim=-1).mean()))
                 del hm,hn,ht,loss,parts,z,zd,mixed,negative,coefficients,donor_raw
-            grad = torch.nn.utils.clip_grad_norm_(receiver.adapter.parameters(),1.,error_if_nonfinite=True)
+            grad = torch.nn.utils.clip_grad_norm_(receiver.adapter.parameters(),training['grad_clip'],error_if_nonfinite=True)
             assert all(p.grad is None for p in receiver.base_model.parameters())
             opt.step(); step += 1; processed += len(chunk)
             log({'event':'update','step':step,'epoch':epoch+1,'examples':processed,'tokens':tokens,
@@ -365,7 +379,7 @@ def main():
                 'peak_allocated_bytes':torch.cuda.max_memory_allocated()})
             if probes:
                 log(probes.measure(receiver, communication_mix, step))
-            if step % 25 == 0 or probes:
+            if step % training['checkpoint_interval'] == 0 or probes:
                 save(f'update_{step:04d}.pt',step,None)
             stopped = training_stop_reason(step, a.stop_after_updates, time.time()-train_start, a.max_hours)
             if stopped:

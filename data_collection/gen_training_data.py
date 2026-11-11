@@ -6,12 +6,12 @@ import argparse
 import json
 import random
 from pathlib import Path
-from common import (DATA_SPLIT_SEED, TRAIN_SOURCE, ALFWORLD_GAMES,
-    PREPARED_DIR, ETO_AUDIT_DATA)
+from configs.config import config_for_parser, load_config
 from utils.hashing import sha256_file, write_json
 
 
-def convert(row, games=ALFWORLD_GAMES):
+def convert(row, games=None):
+    games = games if games is not None else load_config()['data']['source']['alfworld_games']
     turns = row['conversations']
     if len(turns) < 4:
         raise ValueError(f"{row['id']}: unexpected initial exchange")
@@ -56,8 +56,13 @@ def convert(row, games=ALFWORLD_GAMES):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--audit', default=ETO_AUDIT_DATA, help='complete replay audit')
-    ap.add_argument('--out-dir', default=PREPARED_DIR, help='new prepared-data directory')
+    experiment = config_for_parser(ap)
+    data = experiment['data']['split']
+    TRAIN_SOURCE = str(Path(experiment['data']['successful']['output_dir']) / 'alfworld_sft_successful.json')
+    ALFWORLD_GAMES = experiment['data']['source']['alfworld_games']
+    DATA_SPLIT_SEED = data['seed']
+    ap.add_argument('--audit', default=str(Path(experiment['data']['replay']['output_dir']) / 'replay.jsonl'), help='complete replay audit')
+    ap.add_argument('--out-dir', default=data['output_dir'], help='new prepared-data directory')
     arg = ap.parse_args()
 
     out = Path(arg.out_dir)
@@ -81,7 +86,7 @@ def main():
     out.mkdir(parents = True, exist_ok = False)
 
     random.Random(DATA_SPLIT_SEED).shuffle(rows)
-    n = max(1,int(len(rows)*.05));splits = {'selection':rows[:n],'fit':rows[n:]}
+    n = max(1,int(len(rows)*data['selection_fraction']));splits = {'selection':rows[:n],'fit':rows[n:]}
     hashes = {}
     for split,rs in splits.items():
         for r in rs:
@@ -100,7 +105,8 @@ def main():
             'counts':{ k:len(v) for k, v in splits.items() },
             'sha256':hashes,
             'shuffle_seed':DATA_SPLIT_SEED,
-            'selection_fraction':.05,
+            'selection_fraction':data['selection_fraction'],
+            'experiment': {'settings': experiment, 'arguments': vars(arg)},
             'rounding':'floor',
             'filtering':'successful replay only; no additional filtering during preparation',
             'action_rewriting':'none',

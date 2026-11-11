@@ -1,13 +1,13 @@
 """Export original ETO records that won during a complete, verified replay audit.
 
 This creates a separate success-only dataset; it does not change the source,
-or the audit. Preparation reads this output via common.TRAIN_SOURCE.
+or the audit. Preparation reads alfworld_sft_successful.json from data.successful.output_dir.
 """
 import argparse
 import json
 from pathlib import Path
 
-from common import ETO_DATA, ETO_AUDIT_DIR, SUCCESSFUL_ETO_DIR, SUCCESSFUL_ETO_DATA
+from configs.config import config_for_parser
 from utils.hashing import sha256_file, write_json
 
 
@@ -35,10 +35,12 @@ def select_successful(rows, audit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', default=ETO_DATA, help='original ETO JSON')
-    parser.add_argument('--audit-dir', default=ETO_AUDIT_DIR,
+    experiment = config_for_parser(parser)
+    data = experiment['data']
+    parser.add_argument('--source', default=data['source']['eto_path'], help='original ETO JSON')
+    parser.add_argument('--audit-dir', default=data['replay']['output_dir'],
                         help='complete audit directory with config, summary and replay')
-    parser.add_argument('--out-dir', default=SUCCESSFUL_ETO_DIR,
+    parser.add_argument('--out-dir', default=data['successful']['output_dir'],
                         help='new output directory; existing directories are never overwritten')
     args = parser.parse_args()
 
@@ -65,9 +67,10 @@ def main():
 
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=False)
-    dataset = out / Path(SUCCESSFUL_ETO_DATA).name
+    dataset = out / 'alfworld_sft_successful.json'
     write_json(str(dataset), selected)
     manifest = {
+        'experiment': {'settings': experiment, 'arguments': vars(args)},
         'source': str(Path(args.source).resolve()),
         'source_sha256': source_hash,
         'audit': str(replay_path.resolve()),

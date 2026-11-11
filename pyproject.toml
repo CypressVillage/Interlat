@@ -70,10 +70,11 @@ Homepage = "https://github.com/XiaoDu-flying/Interlat"
 Source = "https://github.com/XiaoDu-flying/Interlat"
 
 [tool.setuptools]
-py-modules = ["common", "alfworld_utils"]
+py-modules = ["alfworld_utils"]
 
 [tool.setuptools.packages.find]
 include = [
+    "configs",
     "data_collection", "data_collection.*",
     "model", "model.*",
     "train", "train.*",

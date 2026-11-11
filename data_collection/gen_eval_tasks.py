@@ -3,13 +3,17 @@ import argparse
 import json
 from pathlib import Path
 from alfworld_utils import make_plain_tw_env, strip_intro_text, list_games
-from common import N_VALID_SEEN, ETO_DATA, ALFWORLD_GAMES, VALID_SEEN_DATA
+from configs.config import config_for_parser
 from utils.hashing import sha256_file, write_json
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument('--out', default=VALID_SEEN_DATA, help='new evaluation input file')
+    experiment = config_for_parser(ap)
+    N_VALID_SEEN = experiment['evaluation']['num_tasks']
+    ETO_DATA = experiment['data']['source']['eto_path']
+    ALFWORLD_GAMES = experiment['data']['source']['alfworld_games']
+    ap.add_argument('--out', default=experiment['data']['eval_tasks']['output_path'], help='new evaluation input file')
     a = ap.parse_args()
     out = Path(a.out)
     assert not out.exists()
@@ -34,7 +38,8 @@ def main():
     out.write_text(''.join(json.dumps(r)+'\n' for r in rows))
     write_json(str(out.with_suffix('.manifest.json')), {'count': len(rows),
         'sha256': sha256_file(str(out)), 'source': sha256_file(ETO_DATA),
-        'scope': 'All 140 valid_seen initial states. No expert actions; valid_unseen untouched.'})
+        'experiment': {'settings': experiment, 'arguments': vars(a)},
+        'scope': 'All configured valid_seen initial states. No expert actions; valid_unseen untouched.'})
 
 
 if __name__ == '__main__':

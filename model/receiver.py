@@ -6,8 +6,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from model.adapter import Step1Adapter
-from common import (RECEIVER_MODEL, RECEIVER_REVISION,
-    HIDDEN_SIZE, ADAPTER_HEADS, ADAPTER_PARAM_COUNT)
+from configs.config import load_config
 
 BOP, EOP = '<bop>', '<eop>'
 TEMPLATE = 'Appendix H explicit ChatML; content+im_end+newline assistant labels; injection before first user im_end'
@@ -268,23 +267,27 @@ class ReceiverWithLatent(nn.Module):
         }
 
 
-def tokenizer():
-    tok = AutoTokenizer.from_pretrained(RECEIVER_MODEL, revision = RECEIVER_REVISION)
+def tokenizer(config=None):
+    config = config if config is not None else load_config()['model']['receiver']
+    tok = AutoTokenizer.from_pretrained(config['name_or_path'], revision=config['revision'])
     tok.add_special_tokens({'additional_special_tokens': [BOP, EOP]})
     tok.pad_token = tok.eos_token
     return tok
 
 
-def load_receiver(checkpointing=False):
-    tok = tokenizer()
+def load_receiver(checkpointing=False, config=None):
+    config = config if config is not None else load_config()['model']
+    model_config = config['receiver']
+    tok = tokenizer(model_config)
     base = AutoModelForCausalLM.from_pretrained(
-        RECEIVER_MODEL,
-        revision = RECEIVER_REVISION,
-        torch_dtype = torch.bfloat16,
-        attn_implementation = 'sdpa'
+        model_config['name_or_path'],
+        revision=model_config['revision'],
+        torch_dtype=getattr(torch, model_config['dtype']),
+        attn_implementation=model_config['attention']
     ).cuda()
-    receiver = ReceiverWithLatent(base, tok, Step1Adapter(HIDDEN_SIZE, ADAPTER_HEADS).cuda())
-    report = receiver.freeze_base_and_assert(ADAPTER_PARAM_COUNT)
+    adapter = Step1Adapter(config=config['adapter']).cuda()
+    receiver = ReceiverWithLatent(base, tok, adapter)
+    report = receiver.freeze_base_and_assert()
     if checkpointing:
         base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant': False})
     receiver.eval()
