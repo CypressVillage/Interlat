@@ -1,0 +1,440 @@
+{
+  "archive_date": "2026-11-17",
+  "archived_generated_files": {
+    "configs/adapter_training.json": {
+      "sha256": "86d763db990d6934d61aa7ab62c19ff1c685d7b0dc8d5a0bff72d711455165fb",
+      "size_bytes": 8346
+    },
+    "configs/instruct_controls_full_20261112.json": {
+      "sha256": "76136518e464c7704219baf55ef17a25017ee8bc5f6c74169e7f68a452ef0a5f",
+      "size_bytes": 8807
+    },
+    "configs/instruct_receiver_full_20261111.json": {
+      "sha256": "528df3c9cca15c0442742b57e28a549fbe4808c107eaf9b627b71f6508eac8d6",
+      "size_bytes": 8055
+    },
+    "configs/instruct_text_full_20261112.json": {
+      "sha256": "258b4697467dbe44a24d7cadc6edb704409f5f835bb36bc0c88a42c90d986ad0",
+      "size_bytes": 9262
+    },
+    "configs/sender_eval.json": {
+      "sha256": "2cf156e877ae7a51dc8a7d7b6668c60c4cf0a2486a68172f1e7847247c076eba",
+      "size_bytes": 4872
+    },
+    "episode_results.json": {
+      "sha256": "80b18449014ddb63223a4f5fe71c14dedf1c54ec9435b2c04bca67ed764fdb79",
+      "size_bytes": 84172
+    },
+    "historical_audit.json": {
+      "sha256": "73690f38d7fc53204fdbc9d2e62cc1236824ef5fc1e285edcdab56ca67f1fa48",
+      "size_bytes": 95158
+    },
+    "mismatched_mapping.json": {
+      "sha256": "5acf93a8efbfe7d5a99ded01a8348f8a55f66a0ed26a2a17463ca6abe7ec9446",
+      "size_bytes": 26470
+    },
+    "sender_prompt_examples.json": {
+      "sha256": "b35de71b10446d86d962b7ab33f5b2e9fa29693ad59f24da1c542dc0a9f57630",
+      "size_bytes": 2043
+    },
+    "sources/instruct_controls_full_20261112.py": {
+      "sha256": "0fcf9b094ff523106d934096c544a7ab1e6eea8290c72bdb4d85a9a98a7ff57b",
+      "size_bytes": 16777
+    },
+    "sources/instruct_receiver_full_20261111.py": {
+      "sha256": "b8edb4de98069c2bdfe587c7924a5be245dbc657ab638b1ed0359f694c36cde3",
+      "size_bytes": 12258
+    },
+    "sources/instruct_text_full_20261112.py": {
+      "sha256": "1a59235365ceca78c4df424d9f75186391d02f9c8a46d806f3951441a2e9041a",
+      "size_bytes": 18292
+    }
+  },
+  "artifacts": [
+    {
+      "archive_path": "configs/sender_eval.json",
+      "path": "data/runs/frozen_receiver_full_20261109/eval_latents/config.json",
+      "sha256": "2cf156e877ae7a51dc8a7d7b6668c60c4cf0a2486a68172f1e7847247c076eba",
+      "size_bytes": 4872
+    },
+    {
+      "archive_path": "configs/adapter_training.json",
+      "path": "data/runs/frozen_receiver_full_20261109/train/config.json",
+      "sha256": "86d763db990d6934d61aa7ab62c19ff1c685d7b0dc8d5a0bff72d711455165fb",
+      "size_bytes": 8346
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/valid_seen.jsonl",
+      "sha256": "2f1c37ea49a60914f81322f343d0eea48cc5318fbb72560b5e844dff409359ff",
+      "size_bytes": 382088
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/train/best.pt",
+      "sha256": "0188f8feadc433c25124094a0b9d10f33d3d84290e12cce5e0730bf148067d56",
+      "size_bytes": 925389765
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/train/summary.json",
+      "sha256": "aabc18017dfd8b1886096b753dd2c30875b2b990ac0c45349968dda764d25160",
+      "size_bytes": 2334
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/train/training.jsonl",
+      "sha256": "79533a246885e8daf4677e0b6e4aa1911e9b45ca57a3114e953d483bc085fd0e",
+      "size_bytes": 1050362
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/valid_seen.manifest.json",
+      "sha256": "d788c24ff39dc65ff41ca6673bd1a07a0cf514d583374e9c4849262c531437de",
+      "size_bytes": 4239
+    },
+    {
+      "path": "data/prepared/manifest.json",
+      "sha256": "5ac2a4c5c4357f83585ef205509d62b2558b17b1ff8df3e35f7940858d81fa48",
+      "size_bytes": 1306
+    },
+    {
+      "path": "data/runs/frozen_receiver_v1/successful_eto/manifest.json",
+      "sha256": "d78d330b1b723931bad9d6c068673f12e1d5e36a810982762f9319b201464217",
+      "size_bytes": 1144
+    },
+    {
+      "path": "data/runs/frozen_receiver_v1/latents/config.json",
+      "sha256": "be5186c49260c20b23f20b211160cc178d19252e481ef4f350a949475170551b",
+      "size_bytes": 796
+    },
+    {
+      "archive_path": "configs/instruct_receiver_full_20261111.json",
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/config.json",
+      "sha256": "528df3c9cca15c0442742b57e28a549fbe4808c107eaf9b627b71f6508eac8d6",
+      "size_bytes": 8055
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/summary.json",
+      "sha256": "f56987cbb96c6a49cb7606d8a2edeedef32b04eebdd2f556f748f8676974906d",
+      "size_bytes": 940586
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/complete.json",
+      "sha256": "6b47c3991166b4028ba154e4b5681980960e7a028a69c87c1ffdb9d2b172ef45",
+      "size_bytes": 1179770
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/comparison.json",
+      "sha256": "facf37f2fb1dfe90dd95e384bda7460c04f90d11179baa8feaa888c9edd7a336",
+      "size_bytes": 1449
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/validation.json",
+      "sha256": "d9d5981b8b13614f6e1a15f7517e3743f88ed79562e45e0bb89a07d2852d4ead",
+      "size_bytes": 1678
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/eval_receiver_swap.py",
+      "sha256": "b8edb4de98069c2bdfe587c7924a5be245dbc657ab638b1ed0359f694c36cde3",
+      "size_bytes": 12258
+    },
+    {
+      "archive_path": "configs/instruct_controls_full_20261112.json",
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/config.json",
+      "sha256": "76136518e464c7704219baf55ef17a25017ee8bc5f6c74169e7f68a452ef0a5f",
+      "size_bytes": 8807
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/summary.json",
+      "sha256": "a37fd98513e560493c74be34a9e271f0843b2be0a8bf4bf506d8c7ba48b768a0",
+      "size_bytes": 877992
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/complete.json",
+      "sha256": "7d7845341b17658b65af0028ef54dad9d038f44d7c8eaf9c69721aba6bdbb97e",
+      "size_bytes": 1130201
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/comparison.json",
+      "sha256": "aa15d5b1db8b66c87d43d97548018ef83cb69f13fc246903bf68488632d3d0c2",
+      "size_bytes": 3306
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/validation.json",
+      "sha256": "3a1eca3d25abc6d667f379f1d203160636da722d32b7d8c71721ed66017ffb30",
+      "size_bytes": 2795
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/eval_receiver_swap.py",
+      "sha256": "0fcf9b094ff523106d934096c544a7ab1e6eea8290c72bdb4d85a9a98a7ff57b",
+      "size_bytes": 16777
+    },
+    {
+      "archive_path": "configs/instruct_text_full_20261112.json",
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/config.json",
+      "sha256": "258b4697467dbe44a24d7cadc6edb704409f5f835bb36bc0c88a42c90d986ad0",
+      "size_bytes": 9262
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/summary.json",
+      "sha256": "7d1db909b80d10212a18f84226d890b92d3b20f134f80d86b81fe806ada5fdfc",
+      "size_bytes": 506528
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/complete.json",
+      "sha256": "c5c9ae6fee3899c4930adcc099a90d52724c56d914e0bdc785ce27a71f4b6b89",
+      "size_bytes": 646980
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/comparison.json",
+      "sha256": "5810adaa2235299238b043f6452534537db8e94d784686a706f3dd11ba5c6a36",
+      "size_bytes": 5344
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/validation.json",
+      "sha256": "7d0e3e90f956d303bb794f8abc5f153e54951c08527995c3f44a69fa9a3df747",
+      "size_bytes": 1158
+    },
+    {
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/eval_receiver_swap.py",
+      "sha256": "1a59235365ceca78c4df424d9f75186391d02f9c8a46d806f3951441a2e9041a",
+      "size_bytes": 18292
+    },
+    {
+      "archive_path": "mismatched_mapping.json",
+      "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/mismatched_mapping.json",
+      "sha256": "5acf93a8efbfe7d5a99ded01a8348f8a55f66a0ed26a2a17463ca6abe7ec9446",
+      "size_bytes": 26470
+    }
+  ],
+  "code_provenance": {
+    "audit": "historical_audit.json",
+    "historical_run_commit": null,
+    "local_baseline_commit": "f566bc2a63d1688495f8bb1cabf4c96da083651c",
+    "note": "Local baseline is not claimed as the historical execution commit. Per-file hashes and entrypoint snapshots are archived; see the pinned-history audit."
+  },
+  "issue": "https://github.com/wang-xijun/collab-zhaobc/issues/1#issuecomment-6874622924",
+  "limitations": [
+    "Adapter trained against Base Receiver; evaluated against Instruct Receiver without retraining.",
+    "Single training seed; these historical results do not establish sample-specific communication utility.",
+    "Original shell transcripts, exact execution timestamps, GPU and runtime package lock are not established by this archive.",
+    "No full replay, tensor-content audit, or semantic validity audit was performed during archiving.",
+    "Per-file matches to pinned Git history are recorded separately; actual execution commits remain unknown."
+  ],
+  "mismatched_mapping": {
+    "archive_path": "mismatched_mapping.json",
+    "draw": 0,
+    "file_sha256": "5acf93a8efbfe7d5a99ded01a8348f8a55f66a0ed26a2a17463ca6abe7ec9446",
+    "note": "File SHA-256 and the recorded internal mapping digest are different quantities.",
+    "pairs": 140,
+    "recorded_internal_mapping_sha256": "b9389e2647859f66e15f49a69367fba7df34f406285350bfcedff553794bbdfe"
+  },
+  "paths": {
+    "archive_paths_relative_to": "this manifest directory",
+    "availability": "Local filesystem only; no remote storage or backup verified.",
+    "local_artifact_root_at_archive": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code",
+    "relative_to": "Interlat repository root (latent-communication/code)"
+  },
+  "report_date": "2026-11-14",
+  "runs": [
+    {
+      "adapter_source": {
+        "base": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796",
+        "step": 423
+      },
+      "command_reconstructed_from_arguments": "uv run --no-sync python -m eval.eval_receiver_swap --all-tasks --config configs/step1_instruct_diagnostic.yaml --out-dir data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111 --source-config /home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml",
+      "command_status": "Reconstructed, not an original shell transcript; launcher/environment unknown.",
+      "config_archive": "configs/instruct_receiver_full_20261111.json",
+      "evaluation_seed": 0,
+      "id": "instruct_receiver_full_20261111",
+      "max_steps": 20,
+      "receiver_max_new_tokens": 100,
+      "recorded_arguments": {
+        "all_tasks": true,
+        "config": "configs/step1_instruct_diagnostic.yaml",
+        "num_tasks": null,
+        "out_dir": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111",
+        "source_config": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml"
+      },
+      "recorded_code_sha256": {
+        "alfworld_utils.py": "be4fa9dbfcd5d084d9b0991beb7d2084f26cc3c1fed8996439a2deca38e2d489",
+        "eval/eval_adapter.py": "07a9e951dc7da30e43e1b7f784405d10ac5b967185fa58cf5717635e1d23c5ea",
+        "eval/eval_receiver_swap.py": "b8edb4de98069c2bdfe587c7924a5be245dbc657ab638b1ed0359f694c36cde3",
+        "eval/turns.py": "40489be10ce914565b64fc7486da441acca8d22c46c029abba85b1546f9604b8",
+        "model/receiver.py": "420d1635ed3379f34937a4bb5fb72b1476325e99267e6e3d50e15a531431745a",
+        "model/runtime.py": "7deab29dc502113fd6730e32b26cd5acdc45d20ddff2b6943c002cd6695a9764"
+      },
+      "results": {
+        "matched": {
+          "episodes": 140,
+          "success_rate": 0.37142857142857144,
+          "successes": 52
+        },
+        "no_comm": {
+          "episodes": 140,
+          "success_rate": 0.04285714285714286,
+          "successes": 6
+        }
+      },
+      "saved_entrypoint": {
+        "path": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111/eval_receiver_swap.py",
+        "sha256": "b8edb4de98069c2bdfe587c7924a5be245dbc657ab638b1ed0359f694c36cde3",
+        "size_bytes": 12258
+      },
+      "source_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796"
+      },
+      "target_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B-Instruct",
+        "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+      }
+    },
+    {
+      "adapter_source": {
+        "base": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796",
+        "step": 423
+      },
+      "command_reconstructed_from_arguments": "uv run --no-sync python -m eval.eval_receiver_swap --all-tasks --config configs/step1_instruct_diagnostic.yaml --groups mismatched random --out-dir data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112 --reference-dir data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111 --source-config /home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml",
+      "command_status": "Reconstructed, not an original shell transcript; launcher/environment unknown.",
+      "config_archive": "configs/instruct_controls_full_20261112.json",
+      "evaluation_seed": 0,
+      "id": "instruct_controls_full_20261112",
+      "max_steps": 20,
+      "receiver_max_new_tokens": 100,
+      "recorded_arguments": {
+        "all_tasks": true,
+        "config": "configs/step1_instruct_diagnostic.yaml",
+        "groups": [
+          "mismatched",
+          "random"
+        ],
+        "num_tasks": null,
+        "out_dir": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112",
+        "reference_dir": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111",
+        "source_config": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml"
+      },
+      "recorded_code_sha256": {
+        "alfworld_utils.py": "be4fa9dbfcd5d084d9b0991beb7d2084f26cc3c1fed8996439a2deca38e2d489",
+        "eval/controls.py": "bbe7aa8395210efd97e630d91485357b67d191f733761285c4cb7c2843678d94",
+        "eval/eval_adapter.py": "07a9e951dc7da30e43e1b7f784405d10ac5b967185fa58cf5717635e1d23c5ea",
+        "eval/eval_receiver_swap.py": "0fcf9b094ff523106d934096c544a7ab1e6eea8290c72bdb4d85a9a98a7ff57b",
+        "eval/turns.py": "40489be10ce914565b64fc7486da441acca8d22c46c029abba85b1546f9604b8",
+        "model/receiver.py": "420d1635ed3379f34937a4bb5fb72b1476325e99267e6e3d50e15a531431745a",
+        "model/runtime.py": "7deab29dc502113fd6730e32b26cd5acdc45d20ddff2b6943c002cd6695a9764"
+      },
+      "results": {
+        "mismatched": {
+          "episodes": 140,
+          "success_rate": 0.4357142857142857,
+          "successes": 61
+        },
+        "random": {
+          "episodes": 140,
+          "success_rate": 0.12142857142857143,
+          "successes": 17
+        }
+      },
+      "saved_entrypoint": {
+        "path": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112/eval_receiver_swap.py",
+        "sha256": "0fcf9b094ff523106d934096c544a7ab1e6eea8290c72bdb4d85a9a98a7ff57b",
+        "size_bytes": 16777
+      },
+      "source_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796"
+      },
+      "target_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B-Instruct",
+        "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+      }
+    },
+    {
+      "adapter_source": {
+        "base": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796",
+        "step": 423
+      },
+      "command_reconstructed_from_arguments": "uv run --no-sync python -m eval.eval_receiver_swap --all-tasks --config configs/step1_instruct_diagnostic.yaml --controls-reference-dir data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112 --groups text --out-dir data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112 --reference-dir data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111 --source-config /home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml",
+      "command_status": "Reconstructed, not an original shell transcript; launcher/environment unknown.",
+      "config_archive": "configs/instruct_text_full_20261112.json",
+      "evaluation_seed": 0,
+      "id": "instruct_text_full_20261112",
+      "max_steps": 20,
+      "receiver_max_new_tokens": 100,
+      "recorded_arguments": {
+        "all_tasks": true,
+        "config": "configs/step1_instruct_diagnostic.yaml",
+        "controls_reference_dir": "data/runs/frozen_receiver_full_20261109/instruct_controls_full_20261112",
+        "groups": [
+          "text"
+        ],
+        "num_tasks": null,
+        "out_dir": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112",
+        "reference_dir": "data/runs/frozen_receiver_full_20261109/instruct_receiver_full_20261111",
+        "source_config": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/configs/step1_full_20261109.yaml"
+      },
+      "recorded_code_sha256": {
+        "alfworld_utils.py": "be4fa9dbfcd5d084d9b0991beb7d2084f26cc3c1fed8996439a2deca38e2d489",
+        "eval/controls.py": "bbe7aa8395210efd97e630d91485357b67d191f733761285c4cb7c2843678d94",
+        "eval/eval_adapter.py": "07a9e951dc7da30e43e1b7f784405d10ac5b967185fa58cf5717635e1d23c5ea",
+        "eval/eval_receiver_swap.py": "1a59235365ceca78c4df424d9f75186391d02f9c8a46d806f3951441a2e9041a",
+        "eval/turns.py": "40489be10ce914565b64fc7486da441acca8d22c46c029abba85b1546f9604b8",
+        "model/receiver.py": "420d1635ed3379f34937a4bb5fb72b1476325e99267e6e3d50e15a531431745a",
+        "model/runtime.py": "7deab29dc502113fd6730e32b26cd5acdc45d20ddff2b6943c002cd6695a9764"
+      },
+      "results": {
+        "text": {
+          "episodes": 140,
+          "success_rate": 0.06428571428571428,
+          "successes": 9
+        }
+      },
+      "saved_entrypoint": {
+        "path": "data/runs/frozen_receiver_full_20261109/instruct_text_full_20261112/eval_receiver_swap.py",
+        "sha256": "1a59235365ceca78c4df424d9f75186391d02f9c8a46d806f3951441a2e9041a",
+        "size_bytes": 18292
+      },
+      "source_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B",
+        "revision": "d149729398750b98c0af14eb82c78cfe92750796"
+      },
+      "target_receiver": {
+        "attention": "sdpa",
+        "dtype": "bfloat16",
+        "name_or_path": "Qwen/Qwen2.5-7B-Instruct",
+        "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+      }
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Historical Receiver-swap diagnostic; not Step 0 or Gate 0 acceptance.",
+  "sender_evaluation_cache": {
+    "attention": "sdpa",
+    "batch_size": 8,
+    "data": {
+      "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/valid_seen.jsonl": "2f1c37ea49a60914f81322f343d0eea48cc5318fbb72560b5e844dff409359ff"
+    },
+    "dtype": "bfloat16",
+    "latent": "last layer immediately BEFORE predicting each token; includes EOS; no truncation",
+    "limit": 0,
+    "max_new_tokens": 5000,
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "num_beams": 1,
+    "repetition_penalty": 1.0,
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "rng": "task-specific SHA256(42:id) first 15 hex digits",
+    "temperature": 0.7,
+    "top_k": 50,
+    "top_p": 0.9
+  },
+  "training_seed": 0
+}

@@ -1,0 +1,994 @@
+{
+  "draw": 0,
+  "mapping_sha256": "b9389e2647859f66e15f49a69367fba7df34f406285350bfcedff553794bbdfe",
+  "pairs": {
+    "seen_000": {
+      "donor_episode_id": "seen_003",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_000",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_001": {
+      "donor_episode_id": "seen_000",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_001",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_002": {
+      "donor_episode_id": "seen_006",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_002",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_003": {
+      "donor_episode_id": "seen_010",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_003",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_004": {
+      "donor_episode_id": "seen_011",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_004",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_005": {
+      "donor_episode_id": "seen_012",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_005",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_006": {
+      "donor_episode_id": "seen_001",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_006",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_007": {
+      "donor_episode_id": "seen_004",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_007",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_008": {
+      "donor_episode_id": "seen_002",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_008",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_009": {
+      "donor_episode_id": "seen_007",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_009",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_010": {
+      "donor_episode_id": "seen_009",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_010",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_011": {
+      "donor_episode_id": "seen_005",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_011",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_012": {
+      "donor_episode_id": "seen_008",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_012",
+      "task_type": "look_at_obj_in_light"
+    },
+    "seen_013": {
+      "donor_episode_id": "seen_027",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_013",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_014": {
+      "donor_episode_id": "seen_037",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_014",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_015": {
+      "donor_episode_id": "seen_042",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_015",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_016": {
+      "donor_episode_id": "seen_018",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_016",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_017": {
+      "donor_episode_id": "seen_041",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_017",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_018": {
+      "donor_episode_id": "seen_026",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_018",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_019": {
+      "donor_episode_id": "seen_029",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_019",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_020": {
+      "donor_episode_id": "seen_040",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_020",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_021": {
+      "donor_episode_id": "seen_039",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_021",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_022": {
+      "donor_episode_id": "seen_013",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_022",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_023": {
+      "donor_episode_id": "seen_017",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_023",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_024": {
+      "donor_episode_id": "seen_016",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_024",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_025": {
+      "donor_episode_id": "seen_023",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_025",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_026": {
+      "donor_episode_id": "seen_014",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_026",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_027": {
+      "donor_episode_id": "seen_025",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_027",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_028": {
+      "donor_episode_id": "seen_021",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_028",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_029": {
+      "donor_episode_id": "seen_028",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_029",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_030": {
+      "donor_episode_id": "seen_033",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_030",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_031": {
+      "donor_episode_id": "seen_036",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_031",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_032": {
+      "donor_episode_id": "seen_046",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_032",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_033": {
+      "donor_episode_id": "seen_019",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_033",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_034": {
+      "donor_episode_id": "seen_032",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_034",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_035": {
+      "donor_episode_id": "seen_047",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_035",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_036": {
+      "donor_episode_id": "seen_045",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_036",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_037": {
+      "donor_episode_id": "seen_044",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_037",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_038": {
+      "donor_episode_id": "seen_043",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_038",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_039": {
+      "donor_episode_id": "seen_030",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_039",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_040": {
+      "donor_episode_id": "seen_035",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_040",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_041": {
+      "donor_episode_id": "seen_022",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_041",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_042": {
+      "donor_episode_id": "seen_031",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_042",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_043": {
+      "donor_episode_id": "seen_015",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_043",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_044": {
+      "donor_episode_id": "seen_024",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_044",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_045": {
+      "donor_episode_id": "seen_038",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_045",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_046": {
+      "donor_episode_id": "seen_020",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_046",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_047": {
+      "donor_episode_id": "seen_034",
+      "draw": 0,
+      "shift_k": 5,
+      "target_episode_id": "seen_047",
+      "task_type": "pick_and_place_simple"
+    },
+    "seen_048": {
+      "donor_episode_id": "seen_065",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_048",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_049": {
+      "donor_episode_id": "seen_074",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_049",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_050": {
+      "donor_episode_id": "seen_056",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_050",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_051": {
+      "donor_episode_id": "seen_066",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_051",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_052": {
+      "donor_episode_id": "seen_053",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_052",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_053": {
+      "donor_episode_id": "seen_054",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_053",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_054": {
+      "donor_episode_id": "seen_051",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_054",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_055": {
+      "donor_episode_id": "seen_057",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_055",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_056": {
+      "donor_episode_id": "seen_049",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_056",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_057": {
+      "donor_episode_id": "seen_048",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_057",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_058": {
+      "donor_episode_id": "seen_063",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_058",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_059": {
+      "donor_episode_id": "seen_050",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_059",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_060": {
+      "donor_episode_id": "seen_064",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_060",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_061": {
+      "donor_episode_id": "seen_071",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_061",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_062": {
+      "donor_episode_id": "seen_052",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_062",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_063": {
+      "donor_episode_id": "seen_073",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_063",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_064": {
+      "donor_episode_id": "seen_061",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_064",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_065": {
+      "donor_episode_id": "seen_067",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_065",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_066": {
+      "donor_episode_id": "seen_058",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_066",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_067": {
+      "donor_episode_id": "seen_062",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_067",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_068": {
+      "donor_episode_id": "seen_069",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_068",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_069": {
+      "donor_episode_id": "seen_059",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_069",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_070": {
+      "donor_episode_id": "seen_055",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_070",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_071": {
+      "donor_episode_id": "seen_070",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_071",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_072": {
+      "donor_episode_id": "seen_060",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_072",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_073": {
+      "donor_episode_id": "seen_068",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_073",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_074": {
+      "donor_episode_id": "seen_072",
+      "draw": 0,
+      "shift_k": 13,
+      "target_episode_id": "seen_074",
+      "task_type": "pick_clean_then_place_in_recep"
+    },
+    "seen_075": {
+      "donor_episode_id": "seen_081",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_075",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_076": {
+      "donor_episode_id": "seen_099",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_076",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_077": {
+      "donor_episode_id": "seen_080",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_077",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_078": {
+      "donor_episode_id": "seen_090",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_078",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_079": {
+      "donor_episode_id": "seen_078",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_079",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_080": {
+      "donor_episode_id": "seen_076",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_080",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_081": {
+      "donor_episode_id": "seen_086",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_081",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_082": {
+      "donor_episode_id": "seen_092",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_082",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_083": {
+      "donor_episode_id": "seen_091",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_083",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_084": {
+      "donor_episode_id": "seen_085",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_084",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_085": {
+      "donor_episode_id": "seen_088",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_085",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_086": {
+      "donor_episode_id": "seen_082",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_086",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_087": {
+      "donor_episode_id": "seen_075",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_087",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_088": {
+      "donor_episode_id": "seen_089",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_088",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_089": {
+      "donor_episode_id": "seen_097",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_089",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_090": {
+      "donor_episode_id": "seen_093",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_090",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_091": {
+      "donor_episode_id": "seen_087",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_091",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_092": {
+      "donor_episode_id": "seen_079",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_092",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_093": {
+      "donor_episode_id": "seen_094",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_093",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_094": {
+      "donor_episode_id": "seen_084",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_094",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_095": {
+      "donor_episode_id": "seen_083",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_095",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_096": {
+      "donor_episode_id": "seen_098",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_096",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_097": {
+      "donor_episode_id": "seen_096",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_097",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_098": {
+      "donor_episode_id": "seen_077",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_098",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_099": {
+      "donor_episode_id": "seen_095",
+      "draw": 0,
+      "shift_k": 9,
+      "target_episode_id": "seen_099",
+      "task_type": "pick_cool_then_place_in_recep"
+    },
+    "seen_100": {
+      "donor_episode_id": "seen_109",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_100",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_101": {
+      "donor_episode_id": "seen_108",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_101",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_102": {
+      "donor_episode_id": "seen_111",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_102",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_103": {
+      "donor_episode_id": "seen_113",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_103",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_104": {
+      "donor_episode_id": "seen_107",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_104",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_105": {
+      "donor_episode_id": "seen_115",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_105",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_106": {
+      "donor_episode_id": "seen_112",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_106",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_107": {
+      "donor_episode_id": "seen_105",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_107",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_108": {
+      "donor_episode_id": "seen_106",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_108",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_109": {
+      "donor_episode_id": "seen_101",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_109",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_110": {
+      "donor_episode_id": "seen_114",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_110",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_111": {
+      "donor_episode_id": "seen_104",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_111",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_112": {
+      "donor_episode_id": "seen_110",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_112",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_113": {
+      "donor_episode_id": "seen_102",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_113",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_114": {
+      "donor_episode_id": "seen_100",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_114",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_115": {
+      "donor_episode_id": "seen_103",
+      "draw": 0,
+      "shift_k": 2,
+      "target_episode_id": "seen_115",
+      "task_type": "pick_heat_then_place_in_recep"
+    },
+    "seen_116": {
+      "donor_episode_id": "seen_126",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_116",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_117": {
+      "donor_episode_id": "seen_130",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_117",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_118": {
+      "donor_episode_id": "seen_119",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_118",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_119": {
+      "donor_episode_id": "seen_118",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_119",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_120": {
+      "donor_episode_id": "seen_135",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_120",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_121": {
+      "donor_episode_id": "seen_139",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_121",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_122": {
+      "donor_episode_id": "seen_133",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_122",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_123": {
+      "donor_episode_id": "seen_138",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_123",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_124": {
+      "donor_episode_id": "seen_131",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_124",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_125": {
+      "donor_episode_id": "seen_137",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_125",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_126": {
+      "donor_episode_id": "seen_116",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_126",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_127": {
+      "donor_episode_id": "seen_129",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_127",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_128": {
+      "donor_episode_id": "seen_134",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_128",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_129": {
+      "donor_episode_id": "seen_127",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_129",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_130": {
+      "donor_episode_id": "seen_117",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_130",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_131": {
+      "donor_episode_id": "seen_124",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_131",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_132": {
+      "donor_episode_id": "seen_136",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_132",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_133": {
+      "donor_episode_id": "seen_122",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_133",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_134": {
+      "donor_episode_id": "seen_128",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_134",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_135": {
+      "donor_episode_id": "seen_120",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_135",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_136": {
+      "donor_episode_id": "seen_132",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_136",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_137": {
+      "donor_episode_id": "seen_125",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_137",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_138": {
+      "donor_episode_id": "seen_123",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_138",
+      "task_type": "pick_two_obj_and_place"
+    },
+    "seen_139": {
+      "donor_episode_id": "seen_121",
+      "draw": 0,
+      "shift_k": 12,
+      "target_episode_id": "seen_139",
+      "task_type": "pick_two_obj_and_place"
+    }
+  },
+  "shifts": {
+    "look_at_obj_in_light": 5,
+    "pick_and_place_simple": 5,
+    "pick_clean_then_place_in_recep": 13,
+    "pick_cool_then_place_in_recep": 9,
+    "pick_heat_then_place_in_recep": 2,
+    "pick_two_obj_and_place": 12
+  }
+}

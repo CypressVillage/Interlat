@@ -1,0 +1,200 @@
+{
+  "alpha": 1.0,
+  "base": "Qwen/Qwen2.5-7B",
+  "base_revision": "d149729398750b98c0af14eb82c78cfe92750796",
+  "beta": 1.0,
+  "betas": [
+    0.9,
+    0.999
+  ],
+  "config": "configs/step1_full_20261109.yaml",
+  "delimiter_init": {
+    "equals_mean": true,
+    "ids": [
+      151665,
+      151666
+    ],
+    "mean_norm": 0.08192049711942673,
+    "original_embedding_rows": 152064,
+    "tokenizer_length": 151667
+  },
+  "diagnostic_probe_reference_step": null,
+  "diagnostic_probe_sha256": null,
+  "diagnostic_probes": null,
+  "epochs": 3,
+  "eps": 1e-08,
+  "experiment": {
+    "arguments": {
+      "config": "configs/step1_full_20261109.yaml",
+      "diagnostic_probes": null,
+      "epochs": 3,
+      "fit": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/fit.jsonl",
+      "latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/latents",
+      "max_hours": 0.0,
+      "out_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/train",
+      "resume_epoch": null,
+      "selection": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/selection.jsonl",
+      "smoke": false,
+      "stop_after_updates": 0
+    },
+    "settings": {
+      "data": {
+        "collection": {
+          "batch_size": 8,
+          "eval_latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/eval_latents",
+          "max_new_tokens": 5000,
+          "seed": 42,
+          "temperature": 0.7,
+          "top_k": 50,
+          "top_p": 0.9,
+          "train_latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/latents"
+        },
+        "eval_tasks": {
+          "output_path": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/valid_seen.jsonl"
+        },
+        "paths": {
+          "prepared_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared",
+          "run_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109"
+        },
+        "replay": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/replay"
+        },
+        "source": {
+          "alfworld_games": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/json_2.1.1",
+          "eto_path": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/eto/alfworld_sft.json"
+        },
+        "split": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared",
+          "seed": 42,
+          "selection_fraction": 0.05
+        },
+        "successful": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/successful_eto"
+        }
+      },
+      "evaluation": {
+        "bootstrap_samples": 10000,
+        "max_new_tokens": 100,
+        "max_steps": 20,
+        "num_tasks": 140,
+        "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/eval",
+        "seed": 0
+      },
+      "model": {
+        "adapter": {
+          "dropout": 0.1,
+          "hidden_size": 3584,
+          "layer_norm_eps": 1e-06,
+          "num_heads": 8,
+          "output_scale_init": 0.1,
+          "projection_layer_norm_eps": 1e-05,
+          "projection_output_gain": 0.01,
+          "scale_init": 0.2,
+          "weight_init_std": 0.02
+        },
+        "receiver": {
+          "attention": "sdpa",
+          "dtype": "bfloat16",
+          "name_or_path": "Qwen/Qwen2.5-7B",
+          "revision": "d149729398750b98c0af14eb82c78cfe92750796"
+        },
+        "sender": {
+          "attention": "sdpa",
+          "dtype": "bfloat16",
+          "name_or_path": "Qwen/Qwen2.5-7B-Instruct",
+          "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+        }
+      },
+      "training": {
+        "betas": [
+          0.9,
+          0.999
+        ],
+        "checkpoint_interval": 25,
+        "donor_noise_std": 0.01,
+        "epochs": 3,
+        "eps": 1e-08,
+        "global_batch": 16,
+        "grad_clip": 1.0,
+        "latent_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "learning_rate": 1e-05,
+        "loss_chunk_size": 64,
+        "loss_weights": {
+          "align_min": 0.01,
+          "align_range": 0.04,
+          "js_reference": 0.69,
+          "plan_reference": 4.0,
+          "sep_min": 0.01,
+          "sep_range": 0.49
+        },
+        "max_hours": 0.0,
+        "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/train",
+        "seed": 0,
+        "stop_after_updates": 0,
+        "warmup_ratio": 0.03,
+        "weight_decay": 0.0
+      }
+    }
+  },
+  "fit": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/fit.jsonl",
+  "fit_count": 2244,
+  "freeze": {
+    "base_trainable": 0,
+    "embed_trainable": 0,
+    "lm_head_trainable": 0,
+    "trainable_names": [
+      "adapter"
+    ],
+    "trainable_total": 77113346
+  },
+  "global_batch": 16,
+  "grad_clip": 1.0,
+  "gradient_policy": "both mixed matched and mixed donor; text frozen/no_grad",
+  "lambda_align": "align_min + align_range * clip((KL + cosine_distance) / plan_reference, 0, 1)",
+  "lambda_sep": "sep_min + sep_range * clip(max(0, js_reference - JS) / js_reference, 0, 1)",
+  "latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/latents",
+  "loss_weight_policy": "per-example full-supervised-token losses; differentiable coefficients; upstream controller only, original objectives retained",
+  "lr_schedule": "linear warmup then cosine",
+  "max_hours": 0.0,
+  "max_updates": 423,
+  "mix": "uniform choice from configured latent_fractions; matched/donor latent prefix then current-task text suffix; round(r*L); same r for both branches",
+  "normalization": "supervised-token mean within each optimizer batch, including partial last batch",
+  "optimizer": "AdamW",
+  "out_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/train",
+  "resume": null,
+  "resume_epoch": null,
+  "seed": 0,
+  "selection": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/selection.jsonl",
+  "selection_count": 118,
+  "serial_microbatch": 1,
+  "smoke": false,
+  "source_hashes": {
+    "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/fit.jsonl": "ec8120b9db9dc5e19a37ae56d9b3eb709fc2a67bc56ced12dc6f6a8483d3b3e2",
+    "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared/selection.jsonl": "8f0d813b76eb14969669b383b0a631fd2dd8c284bf1ef76fb61f923e829231f1",
+    "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/latents/config.json": "be5186c49260c20b23f20b211160cc178d19252e481ef4f350a949475170551b",
+    "configs/config.py": "b26ce6a1e3fe830e05c09cb5376f98b96e2221ddcaec4c46e98d6fbd1dda326d",
+    "configs/step1_full_20261109.yaml": "a795db4ac5ba4b821fbe3bcb23062e7ab83d958d560a97976c2d6eb1bacf1175",
+    "eval/controls.py": "bbe7aa8395210efd97e630d91485357b67d191f733761285c4cb7c2843678d94",
+    "model/adapter.py": "0f9a2ea1037fda8135dab23f622b0bc3e3a51825d0a4b4f0dcb7b7e507584b15",
+    "model/receiver.py": "420d1635ed3379f34937a4bb5fb72b1476325e99267e6e3d50e15a531431745a",
+    "model/runtime.py": "7deab29dc502113fd6730e32b26cd5acdc45d20ddff2b6943c002cd6695a9764",
+    "train/diagnostics.py": "d011ee9da8cfb29b3fd0c33210a6af7fefb99e7b23786c85579f4c2bf816d999",
+    "train/train_step1.py": "1726e1fad67105441c1cc6242a1124152cc2370675d9b7e40115fbdb09fc7b77",
+    "utils/hashing.py": "40838f3bab289311eb23d193499f596ee92196eb98f61034bf81fe3fc1c073c4"
+  },
+  "stop_after_updates": 0,
+  "terminal_eos": "retained in source cache; excluded from both text and latent communication",
+  "training_mismatch": "different-ID cyclic donor; raw latent truncated or repeated to current-task content length before adapter; repeated donors receive configured Gaussian noise; current-task text retained",
+  "warmup_updates": 13,
+  "weight_decay": 0.0
+}

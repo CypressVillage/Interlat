@@ -1,0 +1,140 @@
+{
+  "attention": "sdpa",
+  "batch_size": 8,
+  "data": {
+    "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/valid_seen.jsonl": "2f1c37ea49a60914f81322f343d0eea48cc5318fbb72560b5e844dff409359ff"
+  },
+  "dtype": "bfloat16",
+  "experiment": {
+    "arguments": {
+      "batch_size": 8,
+      "config": "configs/step1_full_20261109.yaml",
+      "data": [
+        "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/valid_seen.jsonl"
+      ],
+      "limit": 0,
+      "max_new_tokens": 5000,
+      "out_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/eval_latents",
+      "split": "eval"
+    },
+    "settings": {
+      "data": {
+        "collection": {
+          "batch_size": 8,
+          "eval_latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/eval_latents",
+          "max_new_tokens": 5000,
+          "seed": 42,
+          "temperature": 0.7,
+          "top_k": 50,
+          "top_p": 0.9,
+          "train_latents": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/latents"
+        },
+        "eval_tasks": {
+          "output_path": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/valid_seen.jsonl"
+        },
+        "paths": {
+          "prepared_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared",
+          "run_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109"
+        },
+        "replay": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/replay"
+        },
+        "source": {
+          "alfworld_games": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/json_2.1.1",
+          "eto_path": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/eto/alfworld_sft.json"
+        },
+        "split": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/prepared",
+          "seed": 42,
+          "selection_fraction": 0.05
+        },
+        "successful": {
+          "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_v1/successful_eto"
+        }
+      },
+      "evaluation": {
+        "bootstrap_samples": 10000,
+        "max_new_tokens": 100,
+        "max_steps": 20,
+        "num_tasks": 140,
+        "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/eval",
+        "seed": 0
+      },
+      "model": {
+        "adapter": {
+          "dropout": 0.1,
+          "hidden_size": 3584,
+          "layer_norm_eps": 1e-06,
+          "num_heads": 8,
+          "output_scale_init": 0.1,
+          "projection_layer_norm_eps": 1e-05,
+          "projection_output_gain": 0.01,
+          "scale_init": 0.2,
+          "weight_init_std": 0.02
+        },
+        "receiver": {
+          "attention": "sdpa",
+          "dtype": "bfloat16",
+          "name_or_path": "Qwen/Qwen2.5-7B",
+          "revision": "d149729398750b98c0af14eb82c78cfe92750796"
+        },
+        "sender": {
+          "attention": "sdpa",
+          "dtype": "bfloat16",
+          "name_or_path": "Qwen/Qwen2.5-7B-Instruct",
+          "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+        }
+      },
+      "training": {
+        "betas": [
+          0.9,
+          0.999
+        ],
+        "checkpoint_interval": 25,
+        "donor_noise_std": 0.01,
+        "epochs": 3,
+        "eps": 1e-08,
+        "global_batch": 16,
+        "grad_clip": 1.0,
+        "latent_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "learning_rate": 1e-05,
+        "loss_chunk_size": 64,
+        "loss_weights": {
+          "align_min": 0.01,
+          "align_range": 0.04,
+          "js_reference": 0.69,
+          "plan_reference": 4.0,
+          "sep_min": 0.01,
+          "sep_range": 0.49
+        },
+        "max_hours": 0.0,
+        "output_dir": "/home/zhaobc/prjs/collab-zhaobc/latent-communication/code/data/runs/frozen_receiver_full_20261109/train",
+        "seed": 0,
+        "stop_after_updates": 0,
+        "warmup_ratio": 0.03,
+        "weight_decay": 0.0
+      }
+    }
+  },
+  "latent": "last layer immediately BEFORE predicting each token; includes EOS; no truncation",
+  "limit": 0,
+  "max_new_tokens": 5000,
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "num_beams": 1,
+  "repetition_penalty": 1.0,
+  "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "rng": "task-specific SHA256(42:id) first 15 hex digits",
+  "temperature": 0.7,
+  "top_k": 50,
+  "top_p": 0.9
+}
