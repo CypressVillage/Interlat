@@ -17,7 +17,7 @@ from alfworld_utils import process_ob
 from configs.config import CODE_ROOT, load_config
 import eval.eval_adapter as evaluator
 from eval.turns import PROTOCOL, action_turn
-from model.receiver import load_receiver
+from model.receiver import load_receiver, no_comm_messages
 from model.runtime import adapted, load_rows, text_message
 from utils.hashing import sha256_file, write_json
 
@@ -133,6 +133,8 @@ def verify_swap(source, target):
 
 def traced_rollout(receiver, tok, row, message, config, out):
     history = copy.deepcopy(row['messages'][:2]); turn = 0
+    if message is None:
+        history = no_comm_messages(history)
     make_env = evaluator.make_plain_tw_env
     generate = evaluator.generate_turn
 

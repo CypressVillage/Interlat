@@ -101,7 +101,7 @@ def rollout(receiver,tok,row,message,max_tokens=None,max_steps=None):
         state = env.reset()
         obs = strip_intro_text(state['feedback'])
         assert ' '.join(obs.split()) == ' '.join(row['sender_task'].split())
-        r = render(tok,row['messages'][:2],generation=True)
+        r = render(tok,row['messages'][:2],generation=True,no_comm=message is None)
         b = build(receiver,r,message)
         past, logits = advance(receiver,b['input_embeds'])
         emb = receiver.base_model.get_input_embeddings()

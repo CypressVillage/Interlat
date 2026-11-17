@@ -10,6 +10,24 @@ from configs.config import load_config
 
 BOP, EOP = '<bop>', '<eop>'
 TEMPLATE = 'Appendix H explicit ChatML; content+im_end+newline assistant labels; injection before first user im_end'
+PLAN_INTRO = 'Now, you are given a step-by-step plan to complete this task as follow: '
+
+
+def no_comm_messages(messages):
+    """Remove only an empty plan introduction in the initial user turn.
+
+    Prepared inputs are shared with communication groups, so never mutate them.
+    This also handles existing prepared JSONL files without rewriting old runs.
+    """
+    result = [dict(message) for message in messages]
+    for message in result:
+        if message['role'] == 'user':
+            suffix = '\n' + PLAN_INTRO.rstrip()
+            content = message['content'].rstrip()
+            if content.endswith(suffix):
+                message['content'] = content[:-len(suffix)]
+            break
+    return result
 
 
 @dataclass
@@ -21,8 +39,10 @@ class RenderedInput:
     template_hash: str
 
 
-def render(tok, messages, generation=False):
+def render(tok, messages, generation=False, no_comm=False):
     """Render Appendix-H ChatML and supervised positions for training/generation."""
+    if no_comm:
+        messages = no_comm_messages(messages)
     ids, labels, spans = [], [], []
     injection = None
     for msg in messages:
@@ -42,7 +62,8 @@ def render(tok, messages, generation=False):
         labels.extend([-100]*len(header))
     if injection is None:
         raise ValueError('messages must contain a user turn')
-    return RenderedInput(ids, labels, injection, spans, hashlib.sha256(TEMPLATE.encode()).hexdigest())
+    template = TEMPLATE + ('; No-Comm: remove empty initial plan introduction v1' if no_comm else '')
+    return RenderedInput(ids, labels, injection, spans, hashlib.sha256(template.encode()).hexdigest())
 
 _ADAPTER_MODULES = ("hidden_mha", "pre_ln", "post_ln", "adaptive_proj")
 # params live as "<owner>.<module>.<...>"; owner is "adapter" on ReceiverWithLatent

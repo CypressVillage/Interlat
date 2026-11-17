@@ -67,7 +67,9 @@ def supervised_hidden(receiver, rendered, message):
 
 @torch.no_grad()
 def nll(receiver, row, message):
-    h, y = supervised_hidden(receiver, row['rendered'], message)
+    rendered = (render(receiver.tok, row['messages'], no_comm=True)
+                if message is None else row['rendered'])
+    h, y = supervised_hidden(receiver, rendered, message)
     total = 0.
     for s in range(0, len(y), 64):
         logits = receiver.base_model.lm_head(h[s:s+64]).float()
